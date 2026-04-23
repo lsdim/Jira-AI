@@ -1,0 +1,10 @@
+# Reference files from the user
+*.htm
+*.html_files/
+ticket.txt
+tickets_list.txt
+url.txt
+
+# Browser extension related
+.DS_Store
+Thumbs.db
