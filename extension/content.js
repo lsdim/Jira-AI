@@ -24,7 +24,7 @@ function injectAIButtonIntoDialog() {
   aiBtn.id = 'jira-ai-helper-btn';
   aiBtn.className = 'aui-button';
   aiBtn.type = 'button'; // Щоб не сабмітив форму Jira
-  aiBtn.innerHTML = '<span class="aui-icon aui-icon-small aui-iconfont-magic"></span> AI Відповідь';
+  aiBtn.innerHTML = '✨ AI Відповідь';
   aiBtn.style.marginLeft = '10px';
   aiBtn.style.backgroundColor = '#deebff';
   aiBtn.style.color = '#0052cc';
@@ -105,7 +105,7 @@ async function processAIGeneration(ticketData, manualNotes) {
     ${manualNotes || 'Проблема усунена, все працює коректно.'}
     
     ВИМОГИ ДО ВІДПОВІДІ:
-    1. Поле "executedWorks": напиши коротко у форматі "Проблема: [суть] Вирішення: [що зроблено]".
+    1. Поле "executedWorks": напиши коротко у форматі "Проблема: [суть]\n Вирішення: [що зроблено]".
     2. Поле "userComment": ввічлива відповідь користувачу (наприклад: "Доброго дня! Вашу заявку опрацьовано. Проблему з [суть] усунено. Гарного дня!").
     3. Мова: українська.
 	4. Відповідь повинна бути коротка, чітка, без води.
@@ -128,8 +128,10 @@ async function processAIGeneration(ticketData, manualNotes) {
 
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
+	console.log('data', data);
 
     let textResponse = data.candidates[0].content.parts[0].text;
+	console.log('textResponse',textResponse);
     // Очищення від можливих артефактів розмітки
     textResponse = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
     
@@ -141,28 +143,46 @@ async function processAIGeneration(ticketData, manualNotes) {
   }
 }
 
-// Заповнення полів у відкритому діалозі Jira
+// Автозаповнення полів у відкритому діалозі Jira
 function fillJiraFields(data) {
   const worksField = document.querySelector(JIRA_CONFIG.selectors.dialogExecutedWorks);
-  const commentField = document.querySelector(JIRA_CONFIG.selectors.dialogComment);
   const resolutionField = document.querySelector(JIRA_CONFIG.selectors.dialogResolution);
 
+  // 1. Заповнюємо "Виконані роботи" (зазвичай це проста textarea)
   if (worksField) {
     worksField.value = data.executedWorks;
     worksField.dispatchEvent(new Event('input', { bubbles: true }));
     worksField.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  if (commentField) {
-    // В деяких версіях Jira це textarea, в деяких RTE (Rich Text Editor)
-    commentField.value = data.userComment;
-    commentField.dispatchEvent(new Event('input', { bubbles: true }));
-    commentField.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-
+  // 2. Заповнюємо "Результат обробки"
   if (resolutionField) {
     resolutionField.value = '10309'; // ID для "Вирішена"
     resolutionField.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  // 3. Заповнюємо "Коментар" (з урахуванням iframe TinyMCE)
+  const commentIframe = document.querySelector('iframe[id^="mce_"][id$="_ifr"]');
+  if (commentIframe && commentIframe.contentDocument) {
+    const editorBody = commentIframe.contentDocument.getElementById('tinymce');
+    if (editorBody) {
+      // Вставляємо текст у параграф, як це робить TinyMCE
+      editorBody.innerHTML = `<p>${data.userComment}</p>`;
+      // Додатково оновлюємо приховану textarea, якщо вона є
+      const hiddenTextarea = document.querySelector(JIRA_CONFIG.selectors.dialogComment);
+      if (hiddenTextarea) {
+        hiddenTextarea.value = data.userComment;
+      }
+      console.log('AI Helper: TinyMCE comment filled');
+    }
+  } else {
+    // Якщо iframe не знайдено, пробуємо як звичайне поле
+    const commentField = document.querySelector(JIRA_CONFIG.selectors.dialogComment);
+    if (commentField) {
+      commentField.value = data.userComment;
+      commentField.dispatchEvent(new Event('input', { bubbles: true }));
+      commentField.dispatchEvent(new Event('change', { bubbles: true }));
+    }
   }
 }
 
