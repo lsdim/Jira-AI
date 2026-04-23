@@ -38,7 +38,7 @@ function injectAIButtonIntoDialog() {
   footer.prepend(aiBtn);
 }
 
-// Функція збору даних заявки (вони залишаються в DOM під модалкою)
+// Функція збору даних заявки (вони залишаються в DOM под модалкою)
 function getTicketData() {
   const summary = document.querySelector(JIRA_CONFIG.selectors.summary)?.innerText || '';
   const description = document.querySelector(JIRA_CONFIG.selectors.description)?.innerText || '';
@@ -61,7 +61,8 @@ function openManualInputModal() {
         <button id="ai-generate-btn" class="aui-button aui-button-primary">Згенерувати</button>
         <button id="ai-cancel-btn" class="aui-button aui-button-link">Скасувати</button>
       </div>
-      <div id="ai-loading" style="display:none; margin-top:10px;">🤖 Gemini генерує відповідь...</div>
+      <div id="ai-loading" style="display:none; margin-top:10px;">🤖 AI генерує відповідь...</div>
+      <div id="ai-status-log" style="font-size: 10px; color: #888; margin-top: 5px;"></div>
     </div>
   `;
 
@@ -71,31 +72,47 @@ function openManualInputModal() {
   document.getElementById('ai-cancel-btn').onclick = () => modal.remove();
   document.getElementById('ai-generate-btn').onclick = async () => {
     const manualNotes = document.getElementById('ai-manual-notes').value;
-    document.getElementById('ai-loading').style.display = 'block';
+    const loadingEl = document.getElementById('ai-loading');
+    const statusLog = document.getElementById('ai-status-log');
+    
+    loadingEl.style.display = 'block';
     document.getElementById('ai-generate-btn').disabled = true;
     
     try {
-      await processAIGeneration(ticketData, manualNotes);
+      await processAIGeneration(ticketData, manualNotes, (msg) => {
+        statusLog.innerText = msg;
+      });
       modal.remove();
     } catch (err) {
-      alert('Помилка API: ' + err.message);
-      document.getElementById('ai-loading').style.display = 'none';
+      alert('Всі моделі AI недоступні або сталася помилка: ' + err.message);
+      loadingEl.style.display = 'none';
       document.getElementById('ai-generate-btn').disabled = false;
     }
   };
 }
 
-// Робота з Gemini API
-async function processAIGeneration(ticketData, manualNotes) {
+// Робота з Gemini API з механізмом fallback (перемикання моделей)
+async function processAIGeneration(ticketData, manualNotes, onProgress) {
   const storage = await chrome.storage.local.get('geminiApiKey');
   const apiKey = storage.geminiApiKey;
 
   if (!apiKey) {
-    throw new Error('API Key не знайдено! Натисніть на іконку розширення та введіть ключ.');
+    throw new Error('API Key не знайдено! Налаштуйте його в параметрах розширення.');
   }
 
+  // Ваш список моделей для ітерації
+  const userModels = [ 
+		'gemini-2.5-flash-lite', 
+        'gemini-2.5-flash', 
+        'gemini-flash-latest',
+        'gemma-4-31b-it',
+        'gemma-3-27b-it',
+        'gemini-2.0-flash-lite',
+        'gemini-2.0-flash'
+  ];
+
   const prompt = `
-    Ти спеціаліст технічної підтримки (Local Support). Твоє завдання — заповнити звіт про виконання заявки.
+    Ти спеціаліст технічної підтримки. Твоє завдання — заповнити звіт про виконання заявки.
     
     КОНТЕКСТ ЗАЯВКИ:
     Тема: ${ticketData.summary}
@@ -104,11 +121,9 @@ async function processAIGeneration(ticketData, manualNotes) {
     ЩО Я ЗРОБИВ (МОЇ НОТАТКИ):
     ${manualNotes || 'Проблема усунена, все працює коректно.'}
     
-    ВИМОГИ ДО ВІДПОВІДІ:
-    1. Поле "executedWorks": напиши коротко у форматі "Проблема: [суть]\n Вирішення: [що зроблено]".
-    2. Поле "userComment": ввічлива відповідь користувачу (наприклад: "Доброго дня! Вашу заявку опрацьовано. Проблему з [суть] усунено. Гарного дня!").
-    3. Мова: українська.
-	4. Відповідь повинна бути коротка, чітка, без води.
+    ВИМОГИ ДО ВІДПОВІДІ (МОВА УКРАЇНСЬКА, коротка, чітка, без води):
+    1. Поле "executedWorks": коротко у форматі "Проблема: [суть]\n Вирішення: [що зроблено]".
+    2. Поле "userComment": ввічлива відповідь користувачу.
     
     НАДАЙ ВІДПОВІДЬ ВИКЛЮЧНО У ФОРМАТІ JSON (без markdown):
     {
@@ -117,30 +132,48 @@ async function processAIGeneration(ticketData, manualNotes) {
     }
   `;
 
-  try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
-    });
+  let lastError = null;
 
-    const data = await response.json();
-    if (data.error) throw new Error(data.error.message);
-	console.log('data', data);
+  for (const model of userModels) {
+    try {
+      if (onProgress) onProgress(`Спроба через ${model}...`);
+      console.log(`AI Helper: Пробую модель ${model}...`);
+      
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      });
 
-    let textResponse = data.candidates[0].content.parts[0].text;
-	console.log('textResponse',textResponse);
-    // Очищення від можливих артефактів розмітки
-    textResponse = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-    
-    const result = JSON.parse(textResponse);
-    fillJiraFields(result);
-  } catch (e) {
-    console.error('Gemini Error:', e);
-    throw e;
+      const data = await response.json();
+
+      if (data.error) {
+        console.warn(`AI Helper: Модель ${model} недоступна: ${data.error.message}`);
+        lastError = data.error.message;
+        continue; 
+      }
+
+      if (!data.candidates || data.candidates.length === 0) {
+        continue;
+      }
+
+      let textResponse = data.candidates[0].content.parts[0].text;
+      textResponse = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+      
+      const result = JSON.parse(textResponse);
+      fillJiraFields(result);
+      console.log(`AI Helper: Успішно через ${model}`);
+      return; 
+
+    } catch (e) {
+      console.error(`AI Helper: Помилка ${model}:`, e);
+      lastError = e.message;
+    }
   }
+
+  throw new Error(lastError || 'Невідома помилка');
 }
 
 // Автозаповнення полів у відкритому діалозі Jira
@@ -148,35 +181,26 @@ function fillJiraFields(data) {
   const worksField = document.querySelector(JIRA_CONFIG.selectors.dialogExecutedWorks);
   const resolutionField = document.querySelector(JIRA_CONFIG.selectors.dialogResolution);
 
-  // 1. Заповнюємо "Виконані роботи" (зазвичай це проста textarea)
   if (worksField) {
     worksField.value = data.executedWorks;
     worksField.dispatchEvent(new Event('input', { bubbles: true }));
     worksField.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  // 2. Заповнюємо "Результат обробки"
   if (resolutionField) {
     resolutionField.value = '10309'; // ID для "Вирішена"
     resolutionField.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  // 3. Заповнюємо "Коментар" (з урахуванням iframe TinyMCE)
   const commentIframe = document.querySelector('iframe[id^="mce_"][id$="_ifr"]');
   if (commentIframe && commentIframe.contentDocument) {
     const editorBody = commentIframe.contentDocument.getElementById('tinymce');
     if (editorBody) {
-      // Вставляємо текст у параграф, як це робить TinyMCE
       editorBody.innerHTML = `<p>${data.userComment}</p>`;
-      // Додатково оновлюємо приховану textarea, якщо вона є
       const hiddenTextarea = document.querySelector(JIRA_CONFIG.selectors.dialogComment);
-      if (hiddenTextarea) {
-        hiddenTextarea.value = data.userComment;
-      }
-      console.log('AI Helper: TinyMCE comment filled');
+      if (hiddenTextarea) hiddenTextarea.value = data.userComment;
     }
   } else {
-    // Якщо iframe не знайдено, пробуємо як звичайне поле
     const commentField = document.querySelector(JIRA_CONFIG.selectors.dialogComment);
     if (commentField) {
       commentField.value = data.userComment;
