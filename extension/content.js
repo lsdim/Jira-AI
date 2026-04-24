@@ -57,12 +57,22 @@ async function saveToHistory(service, note) {
   await chrome.storage.local.set({ notesHistory: history });
 }
 
+async function removeFromHistory(service, note) {
+  const data = await chrome.storage.local.get('notesHistory');
+  const history = data.notesHistory || {};
+  if (history[service]) {
+    history[service] = history[service].filter(n => n !== note);
+    await chrome.storage.local.set({ notesHistory: history });
+  }
+}
+
 async function openManualInputModal() {
   const ticketData = getTicketData();
-  const history = await getHistory(ticketData.service);
+  let history = await getHistory(ticketData.service);
   
   const modal = document.createElement('div');
   modal.id = 'ai-helper-modal';
+  // ... (HTML залишається без змін до моменту рендерингу історії)
   modal.innerHTML = `
     <div class="ai-modal-wrapper" id="ai-modal-wrapper">
       <div class="ai-modal-main">
@@ -108,17 +118,36 @@ async function openManualInputModal() {
 
   textarea.focus();
 
-  // Логіка відображення історії
+  // Логіка відображення історії з підтримкою видалення
   const renderHistory = (filter = '') => {
     const filtered = history.filter(h => h.toLowerCase().includes(filter.toLowerCase()));
     historyList.innerHTML = filtered.length 
-      ? filtered.map(h => `<div class="ai-history-item">${h}</div>`).join('')
-      : `<div style="padding: 10px; font-size: 11px; color: #888; text-align: center;">Нічого не знайдено</div>`;
+      ? filtered.map(h => `
+          <div class="ai-history-item" title="Натисніть щоб вставити">
+            ${h}
+            <div class="ai-history-item-delete" title="Видалити цей шаблон" data-note="${h.replace(/"/g, '&quot;')}">×</div>
+          </div>`).join('')
+      : `<div style="padding: 20px; font-size: 11px; color: #888; text-align: center;">Нічого не знайдено</div>`;
     
+    // Клік по всьому елементу - вставка тексту
     historyList.querySelectorAll('.ai-history-item').forEach(item => {
-      item.onclick = () => {
-        textarea.value = item.innerText;
+      item.onclick = (e) => {
+        if (e.target.classList.contains('ai-history-item-delete')) return;
+        textarea.value = item.innerText.replace(/×$/, '').trim();
         textarea.focus();
+      };
+    });
+
+    // Клік по хрестику - видалення
+    historyList.querySelectorAll('.ai-history-item-delete').forEach(delBtn => {
+      delBtn.onclick = async (e) => {
+        e.stopPropagation();
+        const noteToRemove = delBtn.getAttribute('data-note');
+        if (confirm('Видалити цей шаблон з історії?')) {
+          await removeFromHistory(ticketData.service, noteToRemove);
+          history = await getHistory(ticketData.service); // Оновлюємо локальний список
+          renderHistory(searchInput.value); // Перемальовуємо
+        }
       };
     });
   };
