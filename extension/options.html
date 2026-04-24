@@ -4,23 +4,48 @@
   <meta charset="utf-8">
   <title>Налаштування Jira AI Helper</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; width: 300px; }
-    .field { margin-bottom: 15px; }
-    label { display: block; margin-bottom: 5px; font-weight: bold; }
-    input { width: 100%; padding: 8px; box-sizing: border-box; }
-    button { padding: 10px 15px; background: #0052cc; color: white; border: none; border-radius: 3px; cursor: pointer; }
+    body { font-family: sans-serif; padding: 20px; width: 450px; background: #f4f5f7; color: #172b4d; }
+    .card { background: white; padding: 20px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    h2 { margin-top: 0; color: #0052cc; border-bottom: 2px solid #ebecf0; padding-bottom: 10px; }
+    .field { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 14px; }
+    input, textarea { width: 100%; padding: 10px; border: 1px solid #dfe1e6; border-radius: 3px; box-sizing: border-box; }
+    textarea { height: 180px; font-family: monospace; font-size: 12px; line-height: 1.4; }
+    .help-text { font-size: 12px; color: #6b778c; margin-top: 5px; }
+    .help-text a { color: #0052cc; text-decoration: none; font-weight: bold; }
+    .help-text a:hover { text-decoration: underline; }
+    .buttons { display: flex; align-items: center; gap: 15px; }
+    button { padding: 10px 20px; background: #0052cc; color: white; border: none; border-radius: 3px; cursor: pointer; font-weight: bold; }
     button:hover { background: #0065ff; }
-    .status { margin-top: 10px; font-size: 0.9em; color: green; }
+    .status { font-size: 13px; color: #36b37e; font-weight: bold; }
   </style>
 </head>
 <body>
-  <h2>Налаштування</h2>
-  <div class="field">
-    <label for="apiKey">Gemini API Key:</label>
-    <input type="password" id="apiKey" placeholder="Вставте ключ тут...">
+  <div class="card">
+    <h2>Налаштування AI Helper</h2>
+    
+    <div class="field">
+      <label for="apiKey">Gemini API Key:</label>
+      <input type="password" id="apiKey" placeholder="Вставте ваш API ключ...">
+      <div class="help-text">
+        Немає ключа? Отримайте його безкоштовно у <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="customPrompt">Інструкції для ШІ (Промпт):</label>
+      <textarea id="customPrompt" placeholder="Введіть інструкції для генерації..."></textarea>
+      <div class="help-text">
+        Використовуйте <code>{{summary}}</code>, <code>{{description}}</code> та <code>{{manualNotes}}</code> як змінні.
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button id="save">Зберегти налаштування</button>
+      <div id="status" class="status"></div>
+    </div>
   </div>
-  <button id="save">Зберегти</button>
-  <div id="status" class="status"></div>
+  <script src="defaults.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

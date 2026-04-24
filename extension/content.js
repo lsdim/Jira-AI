@@ -56,7 +56,7 @@ function openManualInputModal() {
       <h3>Уточнення для ШІ</h3>
       <p style="font-size: 12px; color: #6b778c;"><strong>Заявка:</strong> ${ticketData.summary}</p>
       <label>Що саме було зроблено?</label>
-      <textarea id="ai-manual-notes" placeholder="Наприклад: переобтиснув кабель, оновив драйвери, перевірив доступність..."></textarea>
+      <textarea id="ai-manual-notes" placeholder="Наприклад: переобтиснув кабель, оновив драйвери..."></textarea>
       <div class="ai-modal-buttons">
         <button id="ai-generate-btn" class="aui-button aui-button-primary">Згенерувати</button>
         <button id="ai-cancel-btn" class="aui-button aui-button-link">Скасувати</button>
@@ -91,10 +91,10 @@ function openManualInputModal() {
   };
 }
 
-// Робота з Gemini API з механізмом fallback (перемикання моделей)
 async function processAIGeneration(ticketData, manualNotes, onProgress) {
-  const storage = await chrome.storage.local.get('geminiApiKey');
+  const storage = await chrome.storage.local.get(['geminiApiKey', 'userPrompt']);
   const apiKey = storage.geminiApiKey;
+  const basePrompt = storage.userPrompt || window.DEFAULT_PROMPT;
 
   if (!apiKey) {
     throw new Error('API Key не знайдено! Налаштуйте його в параметрах розширення.');
@@ -111,66 +111,49 @@ async function processAIGeneration(ticketData, manualNotes, onProgress) {
         'gemini-2.0-flash'
   ];
 
-  const prompt = `
-    Ти спеціаліст технічної підтримки. Твоє завдання — заповнити звіт про виконання заявки.
-    
-    КОНТЕКСТ ЗАЯВКИ:
-    Тема: ${ticketData.summary}
-    Опис: ${ticketData.description}
-    
-    ЩО Я ЗРОБИВ (МОЇ НОТАТКИ):
-    ${manualNotes || 'Проблема усунена, все працює коректно.'}
-    
-    ВИМОГИ ДО ВІДПОВІДІ (МОВА УКРАЇНСЬКА, коротка, чітка, без води):
-    1. Поле "executedWorks": коротко у форматі "Проблема: [суть]\n Вирішення: [що зроблено]".
-    2. Поле "userComment": ввічлива відповідь користувачу.
-    
-    НАДАЙ ВІДПОВІДЬ ВИКЛЮЧНО У ФОРМАТІ JSON (без markdown):
-    {
-      "executedWorks": "...",
-      "userComment": "..."
-    }
-  `;
+  const filledPrompt = basePrompt
+    .replace(/{{summary}}/g, ticketData.summary)
+    .replace(/{{description}}/g, ticketData.description)
+    .replace(/{{manualNotes}}/g, manualNotes || 'Проблема усунена, все працює коректно.');
+
+  const finalPrompt = `${filledPrompt}\n\nНАДАЙ ВІДПОВІДЬ ВИКЛЮЧНО У ФОРМАТІ JSON:\n{\n  "executedWorks": "...",\n  "userComment": "..."\n}`;
 
   let lastError = null;
-
   for (const model of userModels) {
     try {
       if (onProgress) onProgress(`Спроба через ${model}...`);
-      console.log(`AI Helper: Пробую модель ${model}...`);
-      
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
+          contents: [{ parts: [{ text: finalPrompt }] }]
         })
       });
-
       const data = await response.json();
-
-      if (data.error) {
-        console.warn(`AI Helper: Модель ${model} недоступна: ${data.error.message}`);
-        lastError = data.error.message;
-        continue; 
-      }
-
-      if (!data.candidates || data.candidates.length === 0) {
-        continue;
-      }
-
-      let textResponse = data.candidates[0].content.parts[0].text;
-      textResponse = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
       
-      const result = JSON.parse(textResponse);
+      if (data.error) { 
+		console.warn(`AI Helper: Модель ${model} недоступна: ${data.error.message}`);
+		lastError = data.error.message; 
+		continue;
+	  }
+	  
+      if (!data.candidates || data.candidates.length === 0) {
+		  continue;
+	  }		  
+	  
+      let text = data.candidates[0].content.parts[0].text;
+      const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+	  
+	  const result = JSON.parse(cleanJson);
       fillJiraFields(result);
-      console.log(`AI Helper: Успішно через ${model}`);
-      return; 
-
+	  
+	  console.log(`AI Helper: Успішно через ${model}`);      
+      return;
+	  
     } catch (e) {
-      console.error(`AI Helper: Помилка ${model}:`, e);
-      lastError = e.message;
-    }
+		console.error(`AI Helper: Помилка ${model}:`, e);
+		lastError = e.message; 
+	}
   }
 
   throw new Error(lastError || 'Невідома помилка');
@@ -183,7 +166,6 @@ function fillJiraFields(data) {
 
   if (worksField) {
     worksField.value = data.executedWorks;
-    worksField.dispatchEvent(new Event('input', { bubbles: true }));
     worksField.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
@@ -193,7 +175,7 @@ function fillJiraFields(data) {
   }
 
   const commentIframe = document.querySelector('iframe[id^="mce_"][id$="_ifr"]');
-  if (commentIframe && commentIframe.contentDocument) {
+  if (commentIframe?.contentDocument) {
     const editorBody = commentIframe.contentDocument.getElementById('tinymce');
     if (editorBody) {
       editorBody.innerHTML = `<p>${data.userComment}</p>`;
@@ -204,7 +186,6 @@ function fillJiraFields(data) {
     const commentField = document.querySelector(JIRA_CONFIG.selectors.dialogComment);
     if (commentField) {
       commentField.value = data.userComment;
-      commentField.dispatchEvent(new Event('input', { bubbles: true }));
       commentField.dispatchEvent(new Event('change', { bubbles: true }));
     }
   }
