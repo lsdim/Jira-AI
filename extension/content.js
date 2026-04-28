@@ -217,14 +217,50 @@ async function processAIGeneration(ticketData, manualNotes, onProgress) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: finalPrompt }] }] })
       });
+
       const data = await response.json();
-      if (data.error) { lastError = data.error.message; continue; }
-      if (!data.candidates) continue;
+      if (data.error) { 
+        lastError = `API Error (${model}): ${data.error.message}`;
+        continue; 
+      }
+      
+      if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+        lastError = `Empty response from ${model}`;
+        continue;
+      }
+
       let text = data.candidates[0].content.parts[0].text;
-      const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      fillJiraFields(JSON.parse(cleanJson));
-      return;
-    } catch (e) { lastError = e.message; }
+      
+      // 1. Покращене очищення: шукаємо першу { та останню }
+      const startJson = text.indexOf('{');
+      const endJson = text.lastIndexOf('}');
+      
+      if (startJson === -1 || endJson === -1) {
+        lastError = `Invalid format from ${model} (no JSON object found)`;
+        continue;
+      }
+      
+      const cleanJson = text.substring(startJson, endJson + 1);
+      
+      try {
+        const result = JSON.parse(cleanJson);
+        
+        // 2. Валідація полів
+        if (typeof result.executedWorks !== 'string' || typeof result.userComment !== 'string') {
+          throw new Error('Missing required fields in JSON');
+        }
+        
+        fillJiraFields(result);
+        return; // Успіх!
+      } catch (parseError) {
+        lastError = `JSON Parse/Validation Error (${model}): ${parseError.message}`;
+        console.error(`AI Helper: ${lastError}`, cleanJson);
+        continue;
+      }
+
+    } catch (e) { 
+      lastError = `Network/Unexpected Error (${model}): ${e.message}`; 
+    }
   }
   throw new Error(lastError);
 }
