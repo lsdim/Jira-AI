@@ -1,0 +1,12 @@
+{
+  "addons": {
+    "jira-ai-helper@lsdim": {
+      "updates": [
+        {
+          "version": "1.0",
+          "update_link": "https://github.com/lsdim/Jira-AI/releases/latest/download/jira_ai_helper.xpi"
+        }
+      ]
+    }
+  }
+}
