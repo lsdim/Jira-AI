@@ -16,6 +16,7 @@ function injectAIButtonIntoDialog() {
   const footer = document.querySelector(JIRA_CONFIG.selectors.dialogFooter);
   if (!footer || document.getElementById('jira-ai-helper-btn')) return;
 
+  // Кнопка ШІ
   const aiBtn = document.createElement('button');
   aiBtn.id = 'jira-ai-helper-btn';
   aiBtn.className = 'aui-button';
@@ -24,13 +25,23 @@ function injectAIButtonIntoDialog() {
   aiBtn.style.marginLeft = '10px';
   aiBtn.style.backgroundColor = '#deebff';
   aiBtn.style.color = '#0052cc';
+  aiBtn.onclick = (e) => { e.preventDefault(); openManualInputModal(); };
 
-  aiBtn.onclick = (e) => {
-    e.preventDefault();
-    openManualInputModal();
-  };
+  // Нова кнопка Google Sheets
+  const sheetsBtn = document.createElement('button');
+  sheetsBtn.id = 'jira-sheets-helper-btn';
+  sheetsBtn.className = 'aui-button';
+  sheetsBtn.type = 'button';
+  sheetsBtn.innerHTML = '📚 Шаблони Google';
+  sheetsBtn.style.marginLeft = '10px';
+  sheetsBtn.style.backgroundColor = '#e3fce1';
+  sheetsBtn.style.color = '#006644';
+  sheetsBtn.onclick = (e) => { e.preventDefault(); openSheetsModal(); };
+
+  footer.prepend(sheetsBtn);
   footer.prepend(aiBtn);
 }
+
 
 function getTicketData() {
   const summary = document.querySelector(JIRA_CONFIG.selectors.summary)?.innerText || '';
