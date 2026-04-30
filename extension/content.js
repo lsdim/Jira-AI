@@ -279,13 +279,19 @@ async function processAIGeneration(ticketData, manualNotes, onProgress) {
 function fillJiraFields(data) {
   const worksField = document.querySelector(JIRA_CONFIG.selectors.dialogExecutedWorks);
   const resolutionField = document.querySelector(JIRA_CONFIG.selectors.dialogResolution);
+  
   if (worksField) {
     worksField.value = data.executedWorks;
     worksField.dispatchEvent(new Event('change', { bubbles: true }));
+    worksField.dispatchEvent(new Event('input', { bubbles: true }));
   }
+
   if (resolutionField) {
-    resolutionField.value = '10309';
+    // Автоматично визначаємо результат: Консультація (10310) або Вирішена (10309)
+    const isConsultation = data.executedWorks.toLowerCase().includes('консультац');
+    resolutionField.value = isConsultation ? '10310' : '10309';
     resolutionField.dispatchEvent(new Event('change', { bubbles: true }));
+    console.log(`AI Helper: Resolution set to ${isConsultation ? 'Consultation (10310)' : 'Resolved (10309)'}`);
   }
   const commentIframe = document.querySelector('iframe[id^="mce_"][id$="_ifr"]');
   if (commentIframe?.contentDocument) {
