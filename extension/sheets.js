@@ -121,6 +121,58 @@ function parseCSV(text) {
     })).filter(item => item.name || item.works);
 }
 
+// Функція показу повних деталей шаблону
+function showTemplateDetails(item, parentWrapper) {
+    const overlay = document.createElement('div');
+    overlay.className = 'ai-details-overlay';
+    overlay.innerHTML = `
+        <div class="ai-details-content">
+            <div class="ai-main-header">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3>📄 Деталі шаблону</h3>
+                    <span class="ai-service-tag">${item.tag}</span>
+                </div>
+            </div>
+            <div class="ai-details-body">
+                <div class="ai-details-row">
+                    <span class="ai-details-label">Коротка назва</span>
+                    <div style="font-weight:bold; color:#0052cc;">${item.name}</div>
+                </div>
+                <div class="ai-details-row">
+                    <span class="ai-details-label">Тема заявки</span>
+                    <div class="ai-details-text">${item.subject}</div>
+                </div>
+                <div class="ai-details-row">
+                    <span class="ai-details-label">Виконані роботи</span>
+                    <div class="ai-details-text">${item.works}</div>
+                </div>
+                <div class="ai-details-row">
+                    <span class="ai-details-label">Текст відповіді (Коментар)</span>
+                    <div class="ai-details-text" style="background:#fffbe6; border-color:#ffe380;">${item.template}</div>
+                </div>
+                ${item.pdf.toLowerCase() === 'так' ? `
+                <div class="ai-details-row">
+                    <span class="ai-details-label" style="color: #de350b;">📎 Потрібні файли</span>
+                    <div class="ai-details-text" style="color: #de350b; border-color:#ffbdad;">${item.files}</div>
+                </div>` : ''}
+            </div>
+            <div class="ai-modal-buttons" style="padding: 16px 24px;">
+                <button id="ai-apply-details-btn" class="aui-button aui-button-primary">Використати цей шаблон</button>
+                <button id="ai-close-details-btn" class="aui-button aui-button-link">Назад до списку</button>
+            </div>
+        </div>
+    `;
+
+    parentWrapper.appendChild(overlay);
+
+    document.getElementById('ai-close-details-btn').onclick = () => overlay.remove();
+    document.getElementById('ai-apply-details-btn').onclick = async () => {
+        await saveToSheetsHistory(item);
+        applyTemplate(item);
+        document.getElementById('ai-helper-modal').remove();
+    };
+}
+
 async function openSheetsModal() {
     const modal = document.createElement('div');
     modal.id = 'ai-helper-modal';
@@ -128,7 +180,7 @@ async function openSheetsModal() {
     let historyData = await getSheetsHistory();
 
     modal.innerHTML = `
-        <div class="ai-modal-wrapper" style="width: 1000px; height: 650px;">
+        <div class="ai-modal-wrapper" id="ai-sheets-wrapper" style="width: 1000px; height: 650px;">
             <div class="ai-modal-main">
                 <button class="ai-toggle-history-btn" id="sheets-history-toggle">Останні (H)</button>
                 
@@ -144,10 +196,10 @@ async function openSheetsModal() {
                 
                 <div class="ai-main-content" style="padding: 0; overflow: hidden; background: #f4f5f7;">
                     <div id="sheets-results-container" style="height: 100%; overflow-y: auto; padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-content: start;">
-                        <div id="sheets-loading" style="grid-column: span 2; text-align: center; padding: 40px;">Завантаження бази... 🔃</div>
+                        <div id="sheets-loading" style="grid-column: span 2; text-align: center; padding: 40px;">Завантаження... 🔃</div>
                     </div>
-                </div>
 
+                </div>
                 <div class="ai-modal-buttons" style="padding: 16px 24px; background: white; border-top: 1px solid #f0f0f0; display: flex; gap: 12px; justify-content: flex-end;">
                     <button id="sheets-refresh-btn" class="aui-button">🔄 Оновити дані</button>
                     <button id="ai-close-sheets-btn" class="aui-button aui-button-link">Закрити</button>
@@ -164,8 +216,8 @@ async function openSheetsModal() {
     `;
 
     document.body.appendChild(modal);
-
     const container = document.getElementById('sheets-results-container');
+    const wrapper = document.getElementById('ai-sheets-wrapper');
     const searchInput = document.getElementById('sheet-search');
     const tagFilter = document.getElementById('tag-filter');
     const sidebar = document.getElementById('sheets-sidebar');
@@ -201,7 +253,10 @@ async function openSheetsModal() {
             <div class="sheet-template-card" data-idx="${idx}" style="background:white; padding:15px; border-radius:8px; border:1px solid #dfe1e6; cursor:pointer; transition:all 0.2s; display:flex; flex-direction:column; gap:8px; position:relative;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span class="ai-service-tag" style="font-size:10px;">${item.tag}</span>
-                    <span style="font-size: 10px; color: #97a0af; font-weight:bold;">#${item.index}</span>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <button class="sheet-preview-btn" data-previdx="${idx}" title="Швидкий перегляд">👁</button>
+                        <span style="font-size: 10px; color: #97a0af; font-weight:bold;">#${item.index}</span>
+                    </div>
                 </div>
                 <div style="font-weight: bold; font-size: 14px; color: #0052cc;">${item.name}</div>
                 <div style="font-size: 11px; color: #172b4d; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="${item.subject.replace(/"/g, '&quot;')}">
@@ -210,16 +265,24 @@ async function openSheetsModal() {
                 <div style="font-size: 11px; color: #5e6c84; background: #f9fafb; padding: 8px; border-radius: 4px; border: 1px dashed #dfe1e6; flex: 1; white-space: pre-line;">
                     ${item.works.length > 150 ? item.works.substring(0, 150) + '...' : item.works}
                 </div>
-                ${item.pdf.toLowerCase() === 'так' ? '<div style="font-size:10px; color:#de350b; font-weight:bold; display:flex; align-items:center; gap:4px;">📎 PDF: ' + item.files + '</div>' : ''}
+                ${item.pdf.toLowerCase() === 'так' ? '<div style="font-size:10px; color:#de350b; font-weight:bold;">📎 Файл: ' + item.files + '</div>' : ''}
             </div>
         `).join('');
 
         container.querySelectorAll('.sheet-template-card').forEach(card => {
-            card.onclick = async () => {
+            card.onclick = async (e) => {
+                if (e.target.closest('.sheet-preview-btn')) return;
                 const item = dataToRender[card.dataset.idx];
                 await saveToSheetsHistory(item);
                 applyTemplate(item);
                 modal.remove();
+            };
+        });
+
+        container.querySelectorAll('.sheet-preview-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                showTemplateDetails(dataToRender[btn.dataset.previdx], wrapper);
             };
         });
     };
