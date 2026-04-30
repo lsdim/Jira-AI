@@ -61,8 +61,9 @@ async function getSheetsHistory() {
 
 async function saveToSheetsHistory(item) {
     const history = await getSheetsHistory();
-    const itemKey = `${item.tag} | ${item.name}`;
-    const newHistory = [item, ...history.filter(h => `${h.tag} | ${h.name}` !== itemKey)].slice(0, 20);
+    // Використовуємо комбінацію теми та тегу як унікальний ключ
+    const itemKey = `${item.tag} | ${item.subject}`;
+    const newHistory = [item, ...history.filter(h => `${h.tag} | ${h.subject}` !== itemKey)].slice(0, 20);
     await chrome.storage.local.set({ usedSheetsTemplates: newHistory });
 }
 
@@ -176,9 +177,9 @@ async function openSheetsModal() {
             return;
         }
         historyList.innerHTML = historyData.map((h, idx) => `
-            <div class="ai-history-item" data-hidx="${idx}">
-                <div style="font-weight: bold; color: #0052cc; font-size: 11px;">${h.name}</div>
-                <div style="font-size: 10px; color: #6b778c;">${h.tag}</div>
+            <div class="ai-history-item" data-hidx="${idx}" title="${h.subject.replace(/"/g, '&quot;')}">
+                <div style="font-weight: bold; color: #0052cc; font-size: 11px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${h.subject}</div>
+                <div style="font-size: 10px; color: #6b778c; margin-top: 4px;">${h.tag}</div>
             </div>
         `).join('');
 
@@ -250,6 +251,7 @@ async function openSheetsModal() {
 
     searchInput.oninput = handleFilter;
     tagFilter.onchange = handleFilter;
+
     document.getElementById('sheets-history-toggle').onclick = () => sidebar.classList.toggle('collapsed');
     document.getElementById('sheets-refresh-btn').onclick = loadAndShow;
     document.getElementById('ai-close-sheets-btn').onclick = () => modal.remove();
