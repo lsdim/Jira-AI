@@ -45,41 +45,65 @@ async function fetchSheetData() {
     }
 }
 
+/**
+ * Розумний парсер CSV, що обробляє багаторядкові поля та екранування лапок
+ */
 function parseCSV(text) {
-    const rows = [];
-    const lines = text.split(/\r?\n/);
-    
-    for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        
-        // Складний спліт для врахування ком всередині лапок
-        const parts = [];
-        let current = '';
-        let inQuotes = false;
-        for (let char of line) {
-            if (char === '"') inQuotes = !inQuotes;
-            else if (char === ',' && !inQuotes) {
-                parts.push(current);
-                current = '';
-            } else current += char;
-        }
-        parts.push(current);
+    const result = [];
+    let row = [];
+    let col = '';
+    let inQuotes = false;
 
-        const cleanParts = parts.map(p => p.trim().replace(/^"|"$/g, ''));
-        
-        rows.push({
-            tag: cleanParts[SHEETS_CONFIG.cols.tag] || '',
-            index: cleanParts[SHEETS_CONFIG.cols.index] || '',
-            name: cleanParts[SHEETS_CONFIG.cols.name] || '',
-            works: cleanParts[SHEETS_CONFIG.cols.works] || '',
-            subject: cleanParts[SHEETS_CONFIG.cols.subject] || '',
-            template: cleanParts[SHEETS_CONFIG.cols.template] || '',
-            pdf: cleanParts[SHEETS_CONFIG.cols.pdfNeeded] || '',
-            files: cleanParts[SHEETS_CONFIG.cols.files] || ''
-        });
+    for (let i = 0; i < text.length; i++) {
+        let char = text[i];
+        let next = text[i + 1];
+
+        if (inQuotes) {
+            if (char === '"' && next === '"') {
+                col += '"'; // екранована лапка "" -> "
+                i++;
+            } else if (char === '"') {
+                inQuotes = false;
+            } else {
+                col += char;
+            }
+        } else {
+            if (char === '"') {
+                inQuotes = true;
+            } else if (char === ',') {
+                row.push(col.trim());
+                col = '';
+            } else if (char === '\n' || (char === '\r' && next === '\n')) {
+                if (char === '\r') i++; // пропускаємо \r в парі \r\n
+                row.push(col.trim());
+                if (row.length > 1 || row[0] !== '') {
+                    result.push(row);
+                }
+                row = [];
+                col = '';
+            } else {
+                col += char;
+            }
+        }
     }
-    return rows;
+    
+    // Додаємо останній рядок, якщо він не порожній
+    if (row.length > 0 || col !== '') {
+        row.push(col.trim());
+        result.push(row);
+    }
+
+    // Пропускаємо заголовок і мапимо в об'єкти
+    return result.slice(1).map(r => ({
+        tag: r[SHEETS_CONFIG.cols.tag] || '',
+        index: r[SHEETS_CONFIG.cols.index] || '',
+        name: r[SHEETS_CONFIG.cols.name] || '',
+        works: r[SHEETS_CONFIG.cols.works] || '',
+        subject: r[SHEETS_CONFIG.cols.subject] || '',
+        template: r[SHEETS_CONFIG.cols.template] || '',
+        pdf: r[SHEETS_CONFIG.cols.pdfNeeded] || '',
+        files: r[SHEETS_CONFIG.cols.files] || ''
+    })).filter(item => item.name || item.works); // фільтруємо зовсім порожні рядки
 }
 
 async function openSheetsModal() {
@@ -101,11 +125,11 @@ async function openSheetsModal() {
                 
                 <div class="ai-main-content" style="padding: 0; overflow: hidden; background: #f4f5f7;">
                     <div id="sheets-results-container" style="height: 100%; overflow-y: auto; padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-content: start;">
-                        <div id="sheets-loading" style="grid-column: span 2; text-align: center; padding: 40px;">Завантаження... 🔃</div>
+                        <div id="sheets-loading" style="grid-column: span 2; text-align: center; padding: 40px;">Завантаження бази... 🔃</div>
                     </div>
                 </div>
 
-                <div class="ai-modal-buttons">
+                <div class="ai-modal-buttons" style="padding: 16px 24px; background: white; border-top: 1px solid #f0f0f0; display: flex; gap: 12px; justify-content: flex-end;">
                     <button id="sheets-refresh-btn" class="aui-button">🔄 Оновити дані</button>
                     <button id="ai-close-sheets-btn" class="aui-button aui-button-link">Закрити</button>
                 </div>
@@ -132,21 +156,20 @@ async function openSheetsModal() {
                     <span style="font-size: 10px; color: #97a0af; font-weight:bold;">#${item.index}</span>
                 </div>
                 <div style="font-weight: bold; font-size: 14px; color: #0052cc;">${item.name}</div>
-                <div style="font-size: 11px; color: #172b4d; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="${item.subject}">
+                <div style="font-size: 11px; color: #172b4d; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="${item.subject.replace(/"/g, '&quot;')}">
                     <strong>Тема:</strong> ${item.subject}
                 </div>
-                <div style="font-size: 11px; color: #5e6c84; background: #f9fafb; padding: 8px; border-radius: 4px; border: 1px dashed #dfe1e6; flex: 1;">
-                    ${item.works.substring(0, 120)}${item.works.length > 120 ? '...' : ''}
+                <div style="font-size: 11px; color: #5e6c84; background: #f9fafb; padding: 8px; border-radius: 4px; border: 1px dashed #dfe1e6; flex: 1; white-space: pre-line;">
+                    ${item.works.length > 150 ? item.works.substring(0, 150) + '...' : item.works}
                 </div>
-                ${item.pdf === 'так' ? '<div style="font-size:10px; color:#de350b; font-weight:bold; display:flex; align-items:center; gap:4px;">📎 PDF: ' + item.files + '</div>' : ''}
+                ${item.pdf.toLowerCase() === 'так' ? '<div style="font-size:10px; color:#de350b; font-weight:bold; display:flex; align-items:center; gap:4px;">📎 PDF: ' + item.files + '</div>' : ''}
             </div>
         `).join('');
 
         container.querySelectorAll('.sheet-template-card').forEach(card => {
             card.onclick = () => {
-                const currentList = searchInput.value || tagFilter.value ? filteredData : cachedSheetsData;
-                const item = currentList[card.dataset.idx];
-                applyTemplate(item);
+                const currentData = (searchInput.value || tagFilter.value) ? filteredData : cachedSheetsData;
+                applyTemplate(currentData[card.dataset.idx]);
                 modal.remove();
             };
         });
@@ -158,7 +181,7 @@ async function openSheetsModal() {
         const tag = tagFilter.value;
         
         filteredData = cachedSheetsData.filter(item => {
-            const searchSource = `${item.tag} ${item.name} ${item.works} ${item.subject}`.toLowerCase();
+            const searchSource = `${item.tag} ${item.name} ${item.works} ${item.subject} ${item.template}`.toLowerCase();
             const matchesSearch = searchSource.includes(query);
             const matchesTag = !tag || item.tag === tag;
             return matchesSearch && matchesTag;
@@ -172,7 +195,7 @@ async function openSheetsModal() {
             cachedSheetsData = await fetchSheetData();
             const tags = [...new Set(cachedSheetsData.map(i => i.tag))].filter(Boolean).sort();
             tagFilter.innerHTML = '<option value="">Всі теги</option>' + 
-                tags.map(t => `<option value="${t}">${t}</option>`).join('');
+                tags.map(t => `<option value="${t.replace(/"/g, '&quot;')}">${t}</option>`).join('');
             renderResults(cachedSheetsData);
             searchInput.focus();
         } catch (e) {
@@ -196,9 +219,8 @@ function applyTemplate(item) {
     
     if (typeof fillJiraFields === 'function') {
         fillJiraFields(data);
-        // Також підсвітимо, якщо потрібен PDF
-        if (item.pdf === 'так') {
-            alert(`Зверніть увагу! Для цього шаблону потрібно прикріпити файл: ${item.files}`);
+        if (item.pdf.toLowerCase() === 'так') {
+            alert(`💡 Зверніть увагу!\nДля цього шаблону потрібно прикріпити файл:\n"${item.files}"`);
         }
     }
 }
