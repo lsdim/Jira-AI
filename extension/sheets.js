@@ -45,9 +45,20 @@ async function fetchSheetData() {
     }
 }
 
-/**
- * Розумний парсер CSV, що обробляє багаторядкові поля та екранування лапок
- */
+// Робота з історією використаних шаблонів
+async function getSheetsHistory() {
+    const data = await chrome.storage.local.get('usedSheetsTemplates');
+    return data.usedSheetsTemplates || [];
+}
+
+async function saveToSheetsHistory(item) {
+    const history = await getSheetsHistory();
+    // Використовуємо комбінацію назви та тегу як унікальний ключ
+    const itemKey = `${item.tag} | ${item.name}`;
+    const newHistory = [item, ...history.filter(h => `${h.tag} | ${h.name}` !== itemKey)].slice(0, 20);
+    await chrome.storage.local.set({ usedSheetsTemplates: newHistory });
+}
+
 function parseCSV(text) {
     const result = [];
     let row = [];
@@ -60,7 +71,7 @@ function parseCSV(text) {
 
         if (inQuotes) {
             if (char === '"' && next === '"') {
-                col += '"'; // екранована лапка "" -> "
+                col += '"';
                 i++;
             } else if (char === '"') {
                 inQuotes = false;
@@ -71,11 +82,11 @@ function parseCSV(text) {
             if (char === '"') {
                 inQuotes = true;
             } else if (char === ',') {
-                row.push(col); // Прибрали .trim()
+                row.push(col);
                 col = '';
             } else if (char === '\n' || (char === '\r' && next === '\n')) {
-                if (char === '\r') i++; 
-                row.push(col); // Прибрали .trim()
+                if (char === '\r') i++;
+                row.push(col);
                 if (row.length > 1 || row[0] !== '') {
                     result.push(row);
                 }
@@ -86,13 +97,10 @@ function parseCSV(text) {
             }
         }
     }
-    
     if (row.length > 0 || col !== '') {
-        row.push(col); // Прибрали .trim()
+        row.push(col);
         result.push(row);
     }
-
-    // Пропускаємо заголовок і мапимо в об'єкти
     return result.slice(1).map(r => ({
         tag: r[SHEETS_CONFIG.cols.tag] || '',
         index: r[SHEETS_CONFIG.cols.index] || '',
@@ -102,16 +110,20 @@ function parseCSV(text) {
         template: r[SHEETS_CONFIG.cols.template] || '',
         pdf: r[SHEETS_CONFIG.cols.pdfNeeded] || '',
         files: r[SHEETS_CONFIG.cols.files] || ''
-    })).filter(item => item.name || item.works); // фільтруємо зовсім порожні рядки
+    })).filter(item => item.name || item.works);
 }
 
 async function openSheetsModal() {
     const modal = document.createElement('div');
     modal.id = 'ai-helper-modal';
     
+    const history = await getSheetsHistory();
+
     modal.innerHTML = `
         <div class="ai-modal-wrapper" style="width: 1000px; height: 650px;">
             <div class="ai-modal-main">
+                <button class="ai-toggle-history-btn" id="sheets-history-toggle">Останні (H)</button>
+                
                 <div class="ai-main-header">
                     <h3>📚 База шаблонів (Google Sheets)</h3>
                     <div style="display: flex; gap: 12px; margin-top: 15px;">
@@ -133,6 +145,15 @@ async function openSheetsModal() {
                     <button id="ai-close-sheets-btn" class="aui-button aui-button-link">Закрити</button>
                 </div>
             </div>
+
+            <div class="ai-modal-sidebar collapsed" id="sheets-sidebar">
+                <div class="ai-history-header">
+                    <label>Останні використані</label>
+                </div>
+                <div class="ai-history-list" id="sheets-history-list">
+                    <!-- Останні шаблони будуть тут -->
+                </div>
+            </div>
         </div>
     `;
 
@@ -141,6 +162,28 @@ async function openSheetsModal() {
     const container = document.getElementById('sheets-results-container');
     const searchInput = document.getElementById('sheet-search');
     const tagFilter = document.getElementById('tag-filter');
+    const sidebar = document.getElementById('sheets-sidebar');
+    const historyList = document.getElementById('sheets-history-list');
+
+    const renderHistory = () => {
+        if (history.length === 0) {
+            historyList.innerHTML = '<div style="padding: 20px; font-size: 11px; color: #888; text-align: center;">Історія порожня</div>';
+            return;
+        }
+        historyList.innerHTML = history.map((h, idx) => `
+            <div class="ai-history-item" data-hidx="${idx}">
+                <div style="font-weight: bold; color: #0052cc; font-size: 11px;">${h.name}</div>
+                <div style="font-size: 10px; color: #6b778c;">${h.tag}</div>
+            </div>
+        `).join('');
+
+        historyList.querySelectorAll('.ai-history-item').forEach(el => {
+            el.onclick = () => {
+                applyTemplate(history[el.dataset.hidx]);
+                modal.remove();
+            };
+        });
+    };
 
     const renderResults = (data) => {
         if (data.length === 0) {
@@ -166,9 +209,11 @@ async function openSheetsModal() {
         `).join('');
 
         container.querySelectorAll('.sheet-template-card').forEach(card => {
-            card.onclick = () => {
+            card.onclick = async () => {
                 const currentData = (searchInput.value || tagFilter.value) ? filteredData : cachedSheetsData;
-                applyTemplate(currentData[card.dataset.idx]);
+                const item = currentData[card.dataset.idx];
+                await saveToSheetsHistory(item);
+                applyTemplate(item);
                 modal.remove();
             };
         });
@@ -178,12 +223,9 @@ async function openSheetsModal() {
     const handleFilter = () => {
         const query = searchInput.value.toLowerCase();
         const tag = tagFilter.value;
-        
         filteredData = cachedSheetsData.filter(item => {
             const searchSource = `${item.tag} ${item.name} ${item.works} ${item.subject} ${item.template}`.toLowerCase();
-            const matchesSearch = searchSource.includes(query);
-            const matchesTag = !tag || item.tag === tag;
-            return matchesSearch && matchesTag;
+            return searchSource.includes(query) && (!tag || item.tag === tag);
         });
         renderResults(filteredData);
     };
@@ -196,14 +238,14 @@ async function openSheetsModal() {
             tagFilter.innerHTML = '<option value="">Всі теги</option>' + 
                 tags.map(t => `<option value="${t.replace(/"/g, '&quot;')}">${t}</option>`).join('');
             renderResults(cachedSheetsData);
+            renderHistory();
             searchInput.focus();
         } catch (e) {
             container.innerHTML = `<div style="grid-column: span 2; color:red; padding:20px; text-align:center;">${e.message}</div>`;
         }
     };
 
-    searchInput.oninput = handleFilter;
-    tagFilter.onchange = handleFilter;
+    document.getElementById('sheets-history-toggle').onclick = () => sidebar.classList.toggle('collapsed');
     document.getElementById('sheets-refresh-btn').onclick = loadAndShow;
     document.getElementById('ai-close-sheets-btn').onclick = () => modal.remove();
 
@@ -215,7 +257,6 @@ function applyTemplate(item) {
         executedWorks: item.works,
         userComment: item.template
     };
-    
     if (typeof fillJiraFields === 'function') {
         fillJiraFields(data);
         if (item.pdf.toLowerCase() === 'так') {
