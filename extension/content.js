@@ -291,7 +291,9 @@ function fillJiraFields(data) {
   if (commentIframe?.contentDocument) {
     const editorBody = commentIframe.contentDocument.getElementById('tinymce');
     if (editorBody) {
-      editorBody.innerHTML = `<p>${data.userComment}</p>`;
+      // Замінюємо переноси рядків на <br> для HTML редактора
+      const htmlContent = data.userComment.replace(/\n/g, '<br>');
+      editorBody.innerHTML = `<p>${htmlContent}</p>`;
       const hiddenTextarea = document.querySelector(JIRA_CONFIG.selectors.dialogComment);
       if (hiddenTextarea) hiddenTextarea.value = data.userComment;
     }

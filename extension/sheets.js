@@ -71,11 +71,11 @@ function parseCSV(text) {
             if (char === '"') {
                 inQuotes = true;
             } else if (char === ',') {
-                row.push(col.trim());
+                row.push(col); // Прибрали .trim()
                 col = '';
             } else if (char === '\n' || (char === '\r' && next === '\n')) {
-                if (char === '\r') i++; // пропускаємо \r в парі \r\n
-                row.push(col.trim());
+                if (char === '\r') i++; 
+                row.push(col); // Прибрали .trim()
                 if (row.length > 1 || row[0] !== '') {
                     result.push(row);
                 }
@@ -87,9 +87,8 @@ function parseCSV(text) {
         }
     }
     
-    // Додаємо останній рядок, якщо він не порожній
     if (row.length > 0 || col !== '') {
-        row.push(col.trim());
+        row.push(col); // Прибрали .trim()
         result.push(row);
     }
 
