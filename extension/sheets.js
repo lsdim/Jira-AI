@@ -45,7 +45,6 @@ async function fetchSheetData() {
     }
 }
 
-// Робота з історією використаних шаблонів
 async function getSheetsHistory() {
     const data = await chrome.storage.local.get('usedSheetsTemplates');
     return data.usedSheetsTemplates || [];
@@ -53,7 +52,6 @@ async function getSheetsHistory() {
 
 async function saveToSheetsHistory(item) {
     const history = await getSheetsHistory();
-    // Використовуємо комбінацію назви та тегу як унікальний ключ
     const itemKey = `${item.tag} | ${item.name}`;
     const newHistory = [item, ...history.filter(h => `${h.tag} | ${h.name}` !== itemKey)].slice(0, 20);
     await chrome.storage.local.set({ usedSheetsTemplates: newHistory });
@@ -117,7 +115,7 @@ async function openSheetsModal() {
     const modal = document.createElement('div');
     modal.id = 'ai-helper-modal';
     
-    const history = await getSheetsHistory();
+    let historyData = await getSheetsHistory();
 
     modal.innerHTML = `
         <div class="ai-modal-wrapper" style="width: 1000px; height: 650px;">
@@ -150,9 +148,7 @@ async function openSheetsModal() {
                 <div class="ai-history-header">
                     <label>Останні використані</label>
                 </div>
-                <div class="ai-history-list" id="sheets-history-list">
-                    <!-- Останні шаблони будуть тут -->
-                </div>
+                <div class="ai-history-list" id="sheets-history-list"></div>
             </div>
         </div>
     `;
@@ -166,11 +162,11 @@ async function openSheetsModal() {
     const historyList = document.getElementById('sheets-history-list');
 
     const renderHistory = () => {
-        if (history.length === 0) {
+        if (historyData.length === 0) {
             historyList.innerHTML = '<div style="padding: 20px; font-size: 11px; color: #888; text-align: center;">Історія порожня</div>';
             return;
         }
-        historyList.innerHTML = history.map((h, idx) => `
+        historyList.innerHTML = historyData.map((h, idx) => `
             <div class="ai-history-item" data-hidx="${idx}">
                 <div style="font-weight: bold; color: #0052cc; font-size: 11px;">${h.name}</div>
                 <div style="font-size: 10px; color: #6b778c;">${h.tag}</div>
@@ -179,19 +175,19 @@ async function openSheetsModal() {
 
         historyList.querySelectorAll('.ai-history-item').forEach(el => {
             el.onclick = () => {
-                applyTemplate(history[el.dataset.hidx]);
+                applyTemplate(historyData[el.dataset.hidx]);
                 modal.remove();
             };
         });
     };
 
-    const renderResults = (data) => {
-        if (data.length === 0) {
+    const renderResults = (dataToRender) => {
+        if (dataToRender.length === 0) {
             container.innerHTML = '<div style="grid-column: span 2; text-align:center; padding:50px; color:#6b778c;">Нічого не знайдено</div>';
             return;
         }
 
-        container.innerHTML = data.map((item, idx) => `
+        container.innerHTML = dataToRender.map((item, idx) => `
             <div class="sheet-template-card" data-idx="${idx}" style="background:white; padding:15px; border-radius:8px; border:1px solid #dfe1e6; cursor:pointer; transition:all 0.2s; display:flex; flex-direction:column; gap:8px; position:relative;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span class="ai-service-tag" style="font-size:10px;">${item.tag}</span>
@@ -210,8 +206,7 @@ async function openSheetsModal() {
 
         container.querySelectorAll('.sheet-template-card').forEach(card => {
             card.onclick = async () => {
-                const currentData = (searchInput.value || tagFilter.value) ? filteredData : cachedSheetsData;
-                const item = currentData[card.dataset.idx];
+                const item = dataToRender[card.dataset.idx];
                 await saveToSheetsHistory(item);
                 applyTemplate(item);
                 modal.remove();
@@ -219,15 +214,14 @@ async function openSheetsModal() {
         });
     };
 
-    let filteredData = [];
     const handleFilter = () => {
         const query = searchInput.value.toLowerCase();
         const tag = tagFilter.value;
-        filteredData = cachedSheetsData.filter(item => {
+        const filtered = cachedSheetsData.filter(item => {
             const searchSource = `${item.tag} ${item.name} ${item.works} ${item.subject} ${item.template}`.toLowerCase();
             return searchSource.includes(query) && (!tag || item.tag === tag);
         });
-        renderResults(filteredData);
+        renderResults(filtered);
     };
 
     const loadAndShow = async () => {
@@ -245,6 +239,8 @@ async function openSheetsModal() {
         }
     };
 
+    searchInput.oninput = handleFilter;
+    tagFilter.onchange = handleFilter;
     document.getElementById('sheets-history-toggle').onclick = () => sidebar.classList.toggle('collapsed');
     document.getElementById('sheets-refresh-btn').onclick = loadAndShow;
     document.getElementById('ai-close-sheets-btn').onclick = () => modal.remove();
