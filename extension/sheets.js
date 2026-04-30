@@ -28,16 +28,25 @@ function parseSheetUrl(url) {
 
 async function fetchSheetData() {
     const storage = await chrome.storage.local.get('sheetsUrl');
-    if (!storage.sheetsUrl) throw new Error('Посилання на таблицю не налаштовано в параметрах!');
+    const url = storage.sheetsUrl;
+    if (!url) throw new Error('Посилання на таблицю не налаштовано в параметрах!');
 
-    const parsed = parseSheetUrl(storage.sheetsUrl);
-    if (!parsed || !parsed.id) throw new Error('Некоректне посилання на Google Таблицю!');
+    let csvUrl = '';
 
-    const csvUrl = `https://docs.google.com/spreadsheets/d/${parsed.id}/export?format=csv&gid=${parsed.gid}`;
+    // Перевіряємо, чи це вже пряме посилання на CSV (опублікована таблиця)
+    if (url.includes('output=csv')) {
+        csvUrl = url;
+    } else {
+        // Якщо це звичайне посилання на редагування, парсимо його
+        const parsed = parseSheetUrl(url);
+        if (!parsed || !parsed.id) throw new Error('Некоректне посилання на Google Таблицю!');
+        csvUrl = `https://docs.google.com/spreadsheets/d/${parsed.id}/export?format=csv&gid=${parsed.gid}`;
+    }
     
     try {
+        console.log('AI Helper: Завантаження CSV за адресою:', csvUrl);
         const response = await fetch(csvUrl);
-        if (!response.ok) throw new Error('Не вдалося завантажити дані (перевірте доступ до таблиці)');
+        if (!response.ok) throw new Error('Не вдалося завантажити дані (перевірте доступ до таблиці або посилання)');
         const text = await response.text();
         return parseCSV(text);
     } catch (e) {
