@@ -10,7 +10,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // Налаштування будильника на кожні 30 хвилин
 function setupAlarm() {
-  chrome.alarms.create(ALARM_NAME, { periodInMinutes: 30 });
+  chrome.alarms.create(ALARM_NAME, { periodInMinutes: 60 });
 }
 
 // Слухаємо будильник
