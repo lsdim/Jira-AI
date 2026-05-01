@@ -3,13 +3,16 @@
   "name": "Jira AI Helper (Gemini)",
   "version": "1.2",
   "description": "Автоматизація закриття заявок Jira за допомогою Gemini AI",
-  "permissions": ["storage"],
+  "permissions": ["storage", "alarms"],
   "host_permissions": [
     "https://jira.ukrposhta.loc/*",
     "https://docs.google.com/spreadsheets/*"
   ],
   "action": {
     "default_popup": "options.html"
+  },
+  "background": {
+    "scripts": ["background.js"]
   },
   "browser_specific_settings": {
     "gecko": {

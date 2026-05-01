@@ -27,7 +27,14 @@ function parseSheetUrl(url) {
 }
 
 async function fetchSheetData() {
-    const storage = await chrome.storage.local.get('sheetsUrl');
+    const storage = await chrome.storage.local.get(['sheetsUrl', 'cachedCsvText']);
+    
+    // Пріоритет кешу
+    if (storage.cachedCsvText) {
+        console.log('AI Helper: Завантажено з кешу');
+        return parseCSV(storage.cachedCsvText);
+    }
+
     const url = storage.sheetsUrl;
     if (!url) throw new Error('Посилання на таблицю не налаштовано в параметрах!');
 
@@ -44,13 +51,16 @@ async function fetchSheetData() {
     }
     
     try {
-        console.log('AI Helper: Завантаження CSV за адресою:', csvUrl);
+        console.log('AI Helper: Кеш порожній, завантаження:', csvUrl);
         const response = await fetch(csvUrl);
-        if (!response.ok) throw new Error('Не вдалося завантажити дані (перевірте доступ до таблиці або посилання)');
+        if (!response.ok) throw new Error('Не вдалося завантажити дані');
         const text = await response.text();
+        
+        // Оновлюємо кеш
+        await chrome.storage.local.set({ cachedCsvText: text, lastCacheUpdate: Date.now() });
         return parseCSV(text);
     } catch (e) {
-        throw new Error('Помилка мережі або доступу: ' + e.message);
+        throw new Error('Помилка мережі: ' + e.message);
     }
 }
 
@@ -78,37 +88,21 @@ function parseCSV(text) {
         let next = text[i + 1];
 
         if (inQuotes) {
-            if (char === '"' && next === '"') {
-                col += '"';
-                i++;
-            } else if (char === '"') {
-                inQuotes = false;
-            } else {
-                col += char;
-            }
+            if (char === '"' && next === '"') { col += '"'; i++; }
+            else if (char === '"') inQuotes = false;
+            else col += char;
         } else {
-            if (char === '"') {
-                inQuotes = true;
-            } else if (char === ',') {
-                row.push(col);
-                col = '';
-            } else if (char === '\n' || (char === '\r' && next === '\n')) {
+            if (char === '"') inQuotes = true;
+            else if (char === ',') { row.push(col); col = ''; }
+            else if (char === '\n' || (char === '\r' && next === '\n')) {
                 if (char === '\r') i++;
                 row.push(col);
-                if (row.length > 1 || row[0] !== '') {
-                    result.push(row);
-                }
-                row = [];
-                col = '';
-            } else {
-                col += char;
-            }
+                if (row.length > 1 || row[0] !== '') result.push(row);
+                row = []; col = '';
+            } else col += char;
         }
     }
-    if (row.length > 0 || col !== '') {
-        row.push(col);
-        result.push(row);
-    }
+    if (row.length > 0 || col !== '') { row.push(col); result.push(row); }
     return result.slice(1).map(r => ({
         tag: r[SHEETS_CONFIG.cols.tag] || '',
         index: r[SHEETS_CONFIG.cols.index] || '',
@@ -183,7 +177,6 @@ async function openSheetsModal() {
         <div class="ai-modal-wrapper" id="ai-sheets-wrapper" style="width: 1000px; height: 650px;">
             <div class="ai-modal-main">
                 <button class="ai-toggle-history-btn" id="sheets-history-toggle">Останні (H)</button>
-                
                 <div class="ai-main-header">
                     <h3>📚 База шаблонів (Google Sheets)</h3>
                     <div style="display: flex; gap: 12px; margin-top: 15px;">
@@ -193,23 +186,17 @@ async function openSheetsModal() {
                         </select>
                     </div>
                 </div>
-                
                 <div class="ai-main-content" style="padding: 0; overflow: hidden; background: #f4f5f7;">
                     <div id="sheets-results-container" style="height: 100%; overflow-y: auto; padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-content: start;">
-                        <div id="sheets-loading" style="grid-column: span 2; text-align: center; padding: 40px;">Завантаження... 🔃</div>
                     </div>
-
                 </div>
                 <div class="ai-modal-buttons" style="padding: 16px 24px; background: white; border-top: 1px solid #f0f0f0; display: flex; gap: 12px; justify-content: flex-end;">
-                    <button id="sheets-refresh-btn" class="aui-button">🔄 Оновити дані</button>
+                    <button id="sheets-refresh-btn" class="aui-button">🔄 Оновити базу</button>
                     <button id="ai-close-sheets-btn" class="aui-button aui-button-link">Закрити</button>
                 </div>
             </div>
-
             <div class="ai-modal-sidebar collapsed" id="sheets-sidebar">
-                <div class="ai-history-header">
-                    <label>Останні використані</label>
-                </div>
+                <div class="ai-history-header"><label>Останні використані</label></div>
                 <div class="ai-history-list" id="sheets-history-list"></div>
             </div>
         </div>
@@ -234,12 +221,8 @@ async function openSheetsModal() {
                 <div style="font-size: 10px; color: #6b778c; margin-top: 4px;">${h.tag}</div>
             </div>
         `).join('');
-
         historyList.querySelectorAll('.ai-history-item').forEach(el => {
-            el.onclick = () => {
-                applyTemplate(historyData[el.dataset.hidx]);
-                modal.remove();
-            };
+            el.onclick = () => { applyTemplate(historyData[el.dataset.hidx]); modal.remove(); };
         });
     };
 
@@ -248,7 +231,6 @@ async function openSheetsModal() {
             container.innerHTML = '<div style="grid-column: span 2; text-align:center; padding:50px; color:#6b778c;">Нічого не знайдено</div>';
             return;
         }
-
         container.innerHTML = dataToRender.map((item, idx) => `
             <div class="sheet-template-card" data-idx="${idx}" style="background:white; padding:15px; border-radius:8px; border:1px solid #dfe1e6; cursor:pointer; transition:all 0.2s; display:flex; flex-direction:column; gap:8px; position:relative;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -297,8 +279,16 @@ async function openSheetsModal() {
         renderResults(filtered);
     };
 
-    const loadAndShow = async () => {
-        container.innerHTML = '<div style="grid-column: span 2; text-align: center; padding: 40px;">Оновлення бази... 🔃</div>';
+    const loadAndShow = async (forceUpdate = false) => {
+        if (forceUpdate) {
+            container.innerHTML = '<div style="grid-column: span 2; text-align: center; padding: 40px;">Оновлення бази з Google Sheets... 🔃</div>';
+            await chrome.storage.local.remove('cachedCsvText');
+        } else {
+            if (!cachedSheetsData.length) {
+                container.innerHTML = '<div style="grid-column: span 2; text-align: center; padding: 40px;">Завантаження... 🔃</div>';
+            }
+        }
+
         try {
             cachedSheetsData = await fetchSheetData();
             const tags = [...new Set(cachedSheetsData.map(i => i.tag))].filter(Boolean).sort();
@@ -306,7 +296,7 @@ async function openSheetsModal() {
                 tags.map(t => `<option value="${t.replace(/"/g, '&quot;')}">${t}</option>`).join('');
             renderResults(cachedSheetsData);
             renderHistory();
-            searchInput.focus();
+            if (!forceUpdate) searchInput.focus();
         } catch (e) {
             container.innerHTML = `<div style="grid-column: span 2; color:red; padding:20px; text-align:center;">${e.message}</div>`;
         }
@@ -316,17 +306,13 @@ async function openSheetsModal() {
     tagFilter.onchange = handleFilter;
 
     document.getElementById('sheets-history-toggle').onclick = () => sidebar.classList.toggle('collapsed');
-    document.getElementById('sheets-refresh-btn').onclick = loadAndShow;
+    document.getElementById('sheets-refresh-btn').onclick = () => loadAndShow(true);
     document.getElementById('ai-close-sheets-btn').onclick = () => modal.remove();
-
     loadAndShow();
 }
 
 function applyTemplate(item) {
-    const data = {
-        executedWorks: item.works,
-        userComment: item.template
-    };
+    const data = { executedWorks: item.works, userComment: item.template };
     if (typeof fillJiraFields === 'function') {
         fillJiraFields(data);
         if (item.pdf.toLowerCase() === 'так') {
