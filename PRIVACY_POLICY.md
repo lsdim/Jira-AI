@@ -1,6 +1,6 @@
 # Privacy Policy for Jira AI Helper (Gemini)
 
-**Last updated: May 23, 2026**
+**Last updated: May 1, 2026**
 
 This Privacy Policy describes how the "Jira AI Helper (Gemini)" browser extension handles user data. Our primary principle is privacy by design: your sensitive data stays under your control.
 
