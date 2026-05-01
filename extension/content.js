@@ -32,7 +32,7 @@ function injectAIButtonIntoDialog() {
   sheetsBtn.id = 'jira-sheets-helper-btn';
   sheetsBtn.className = 'aui-button';
   sheetsBtn.type = 'button';
-  sheetsBtn.innerHTML = '📚 Шаблони Google';
+  sheetsBtn.innerHTML = '📚 Готові шаблони';
   sheetsBtn.style.marginLeft = '10px';
   sheetsBtn.style.backgroundColor = '#e3fce1';
   sheetsBtn.style.color = '#006644';

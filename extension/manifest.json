@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Jira AI Helper (Gemini)",
-  "version": "1.0",
+  "version": "1.2",
   "description": "Автоматизація закриття заявок Jira за допомогою Gemini AI",
   "permissions": ["storage"],
   "host_permissions": [
