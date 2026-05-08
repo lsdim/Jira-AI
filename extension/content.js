@@ -362,9 +362,7 @@ async function processAIGeneration(ticketData, manualNotes, onProgress) {
         'gemini-2.5-flash', 
         'gemini-flash-latest',
         'gemma-4-31b-it',
-        'gemma-3-27b-it',
-        'gemini-2.0-flash-lite',
-        'gemini-2.0-flash'
+        'gemma-3-27b-it'
   ];
 
   const filledPrompt = basePrompt
