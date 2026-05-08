@@ -37,7 +37,8 @@ function loadOptions() {
     enableQueueTooltip: true // За замовчуванням увімкнено
   }, (items) => {
     document.getElementById('apiKey').value = items.geminiApiKey;
-    document.getElementById('prompt').value = items.userPrompt;
+    // Якщо користувацького промпту немає — показуємо стандартний
+    document.getElementById('prompt').value = items.userPrompt || window.DEFAULT_PROMPT || '';
     document.getElementById('sheetsUrl').value = items.sheetsUrl;
     document.getElementById('enableTooltip').checked = items.enableQueueTooltip;
   });
