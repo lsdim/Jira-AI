@@ -70,13 +70,16 @@ function cleanJiraMarkup(text) {
 // --- Секція черг та Tooltip ---
 let tooltipCache = new Map();
 let tooltipTimeout = null;
+let tooltipHideTimeout = null; // Таймер для приховування
 let currentTooltip = null;
 
 function initQueueEnhancements() {
-  // Використовуємо делегування подій для кращої продуктивності
   document.addEventListener('mouseover', (e) => {
     const link = e.target.closest(JIRA_CONFIG.selectors.ticketKeyLink);
     if (!link) return;
+
+    // Скасовуємо приховування, якщо ми повернулися на посилання
+    clearTimeout(tooltipHideTimeout);
 
     const issueKey = link.getAttribute('data-issue-key');
     if (!issueKey) return;
@@ -89,7 +92,8 @@ function initQueueEnhancements() {
     const link = e.target.closest(JIRA_CONFIG.selectors.ticketKeyLink);
     if (link) {
       clearTimeout(tooltipTimeout);
-      hideTooltip();
+      // Починаємо ховати з невеликою затримкою
+      tooltipHideTimeout = setTimeout(hideTooltip, 200);
     }
   });
 }
@@ -101,6 +105,17 @@ async function showIssueTooltip(key, x, y) {
   currentTooltip.className = 'jira-ai-tooltip';
   currentTooltip.style.left = `${x + 15}px`;
   currentTooltip.style.top = `${y + 15}px`;
+  
+  // Якщо мишка зайшла в тултіп — скасовуємо таймер закриття
+  currentTooltip.onmouseenter = () => {
+    clearTimeout(tooltipHideTimeout);
+  };
+
+  // Коли мишка виходить з тултіпа — запускаємо таймер закриття
+  currentTooltip.onmouseleave = () => {
+    tooltipHideTimeout = setTimeout(hideTooltip, 200);
+  };
+
   currentTooltip.innerHTML = `<div class="ai-tooltip-header">Завантаження ${key}...</div><div class="ai-tooltip-body"><div class="ai-pulse"></div></div>`;
   document.body.appendChild(currentTooltip);
 
