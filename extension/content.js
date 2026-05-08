@@ -47,9 +47,24 @@ function injectAIButtonIntoDialog() {
 
 function getTicketData() {
   const summary = document.querySelector(JIRA_CONFIG.selectors.summary)?.innerText || '';
-  const description = document.querySelector(JIRA_CONFIG.selectors.description)?.innerText || '';
+  let description = document.querySelector(JIRA_CONFIG.selectors.description)?.innerText || '';
+  description = cleanJiraMarkup(description);
   const service = document.querySelector(JIRA_CONFIG.selectors.service)?.innerText?.trim() || 'Загальне';
   return { summary, description, service };
+}
+
+// Функція очищення тексту від вікі-розмітки Jira та "сміття"
+function cleanJiraMarkup(text) {
+  if (!text) return '';
+  return text
+    .replace(/\{color:[^}]*\}/gi, '')     // Видаляє {color:#212121}
+    .replace(/\{color\}/gi, '')           // Видаляє {color}
+    .replace(/\{[^}]+\}/gi, '')           // Видаляє будь-які інші теги {panel}, {quote}, {code} тощо
+    .replace(/\[([^|\]]+)\|[^\]]+\]/g, '$1') // Складні посилання [Text|URL] -> Text
+    .replace(/\[\^[^\]]+\]/g, '')         // Вкладення [^file.pdf]
+    .replace(/\n{3,}/g, '\n\n')           // Замінює 3+ переноси рядків на два
+    .replace(/^\s+|\s+$/g, '')            // trim
+    .trim();
 }
 
 // --- Секція черг та Tooltip ---
@@ -98,7 +113,8 @@ async function showIssueTooltip(key, x, y) {
       const issueResp = await fetch(`/rest/api/2/issue/${key}?fields=description,reporter,summary`);
       const issue = await issueResp.json();
       
-      const description = issue.fields.description || 'Опис відсутній';
+      let description = issue.fields.description || 'Опис відсутній';
+	  description = cleanJiraMarkup(description);
       const reporter = issue.fields.reporter;
       //const reporterKey = reporter ? (reporter.key || reporter.name) : null;
       const reporterKey = reporter.name;
