@@ -9,9 +9,12 @@ const JIRA_CONFIG = {
     dialogResolution: '#customfield_10632', // Результат обробки
     dialogExecutedWorks: '#customfield_10831', // Виконані роботи
     dialogComment: '#comment', // Коментар
+    // Селектор для ключів заявок у таблицях черг
+    ticketKeyLink: 'a.issue-link[data-issue-key]'
   }
 };
 
+// --- Секція AI та шаблонів ---
 function injectAIButtonIntoDialog() {
   const footer = document.querySelector(JIRA_CONFIG.selectors.dialogFooter);
   if (!footer || document.getElementById('jira-ai-helper-btn')) return;
@@ -42,7 +45,6 @@ function injectAIButtonIntoDialog() {
   footer.prepend(aiBtn);
 }
 
-
 function getTicketData() {
   const summary = document.querySelector(JIRA_CONFIG.selectors.summary)?.innerText || '';
   const description = document.querySelector(JIRA_CONFIG.selectors.description)?.innerText || '';
@@ -50,7 +52,133 @@ function getTicketData() {
   return { summary, description, service };
 }
 
-// Функції для роботи з історією
+// --- Секція черг та Tooltip ---
+let tooltipCache = new Map();
+let tooltipTimeout = null;
+let currentTooltip = null;
+
+function initQueueEnhancements() {
+  // Використовуємо делегування подій для кращої продуктивності
+  document.addEventListener('mouseover', (e) => {
+    const link = e.target.closest(JIRA_CONFIG.selectors.ticketKeyLink);
+    if (!link) return;
+
+    const issueKey = link.getAttribute('data-issue-key');
+    if (!issueKey) return;
+
+    clearTimeout(tooltipTimeout);
+    tooltipTimeout = setTimeout(() => showIssueTooltip(issueKey, e.pageX, e.pageY), 500);
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    const link = e.target.closest(JIRA_CONFIG.selectors.ticketKeyLink);
+    if (link) {
+      clearTimeout(tooltipTimeout);
+      hideTooltip();
+    }
+  });
+}
+
+async function showIssueTooltip(key, x, y) {
+  if (currentTooltip) currentTooltip.remove();
+
+  currentTooltip = document.createElement('div');
+  currentTooltip.className = 'jira-ai-tooltip';
+  currentTooltip.style.left = `${x + 15}px`;
+  currentTooltip.style.top = `${y + 15}px`;
+  currentTooltip.innerHTML = `<div class="ai-tooltip-header">Завантаження ${key}...</div><div class="ai-tooltip-body"><div class="ai-pulse"></div></div>`;
+  document.body.appendChild(currentTooltip);
+
+  try {
+    let data;
+    if (tooltipCache.has(key)) {
+      data = tooltipCache.get(key);
+    } else {
+      // 1. Отримуємо деталі заявки
+      const issueResp = await fetch(`/rest/api/2/issue/${key}?fields=description,reporter,summary`);
+      const issue = await issueResp.json();
+      
+      const description = issue.fields.description || 'Опис відсутній';
+      const reporter = issue.fields.reporter;
+      //const reporterKey = reporter ? (reporter.key || reporter.name) : null;
+      const reporterKey = reporter.name;
+
+      // 2. Шукаємо інші заявки цього ж автора
+      let otherIssues = [];
+      if (reporterKey) {
+        const searchJql = `reporter = "${reporterKey}" AND key != ${key} ORDER BY created DESC`;
+        const searchResp = await fetch(`/rest/api/2/search?jql=${encodeURIComponent(searchJql)}&maxResults=10&fields=summary,status,created`);
+        const searchResult = await searchResp.json();
+        otherIssues = searchResult.issues || [];
+      }
+
+      data = { summary: issue.fields.summary, description, otherIssues, reporterName: reporter?.displayName || 'Анонім' };
+      tooltipCache.set(key, data);
+    }
+
+    renderTooltipContent(data, key);
+  } catch (err) {
+    currentTooltip.innerHTML = `<div class="ai-tooltip-body" style="color:red;">Помилка завантаження даних</div>`;
+  }
+}
+
+function renderTooltipContent(data, key) {
+  if (!currentTooltip) return;
+
+  const otherTicketsHtml = data.otherIssues.length > 0 
+    ? data.otherIssues.map(issue => {
+        const status = issue.fields.status.name;
+        const colorClass = getStatusColorClass(status);
+        const date = new Date(issue.fields.created).toLocaleDateString('uk-UA');
+        return `
+          <div class="ai-tooltip-ticket-item">
+            <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:10px;" title="${issue.fields.summary}">
+              <strong>${issue.key}</strong>: ${issue.fields.summary}
+            </span>
+            <span class="ai-tooltip-status ${colorClass}">${status}</span>
+            <span style="font-size:9px; color:#6b778c; margin-left:10px;">${date}</span>
+          </div>`;
+      }).join('')
+    : '<div style="font-size:11px; color:#888;">Інших заявок не знайдено</div>';
+
+  currentTooltip.innerHTML = `
+    <div class="ai-tooltip-header">${key}: ${data.summary}</div>
+    <div class="ai-tooltip-body">
+      <span class="ai-tooltip-label">Опис проблеми:</span>
+      <div class="ai-tooltip-description">${data.description}</div>
+      
+      <span class="ai-tooltip-label">Інші заявки від ${data.reporterName}:</span>
+      <div class="ai-tooltip-other-tickets">
+        ${otherTicketsHtml}
+      </div>
+    </div>
+  `;
+  
+  // Коригуємо позицію, щоб не виходило за межі екрану
+  const rect = currentTooltip.getBoundingClientRect();
+  if (rect.right > window.innerWidth) {
+    currentTooltip.style.left = `${window.innerWidth - rect.width - 20}px`;
+  }
+  if (rect.bottom > window.innerHeight) {
+    currentTooltip.style.top = `${window.innerHeight - rect.height - 20}px`;
+  }
+}
+
+function getStatusColorClass(status) {
+  const s = status.toLowerCase();
+  if (s.includes('вирішена') || s.includes('закрита') || s.includes('опрацьована') || s.includes('done') || s.includes('closed')) return 'status-green';
+  if (s.includes('роботі') || s.includes('progress')) return 'status-blue';
+  return 'status-yellow';
+}
+
+function hideTooltip() {
+  if (currentTooltip) {
+    currentTooltip.remove();
+    currentTooltip = null;
+  }
+}
+
+// --- Існуюча логіка автоматизації ---
 async function getHistory(service) {
   const data = await chrome.storage.local.get('notesHistory');
   const history = data.notesHistory || {};
@@ -88,19 +216,16 @@ async function openManualInputModal() {
     <div class="ai-modal-wrapper" id="ai-modal-wrapper">
       <div class="ai-modal-main">
         <button class="ai-toggle-history-btn" id="ai-history-toggle">Шаблони (H)</button>
-        
         <div class="ai-main-header">
           <h3>✨ AI Помічник</h3>
           <div style="margin-top: 4px;">
             <span class="ai-service-tag">${ticketData.service}</span>
           </div>
         </div>
-
         <div class="ai-main-content">
           <label>Що було зроблено для вирішення?</label>
           <textarea id="ai-manual-notes" placeholder="Опишіть технічну суть (напр: оновив ПЗ, скинув налаштування)..."></textarea>
         </div>
-        
         <div class="ai-modal-buttons">
           <div id="ai-loading" style="display:none;">
             <div class="ai-pulse"></div>
@@ -110,8 +235,7 @@ async function openManualInputModal() {
           <button id="ai-cancel-btn" class="aui-button aui-button-link">Скасувати</button>
         </div>
       </div>
-
-      <div class="ai-modal-sidebar" id="ai-sidebar">
+      <div class="ai-modal-sidebar collapsed" id="ai-sidebar">
         <div class="ai-history-header">
           <label>Ваші шаблони</label>
           <input type="text" class="ai-history-search" id="ai-search-input" placeholder="Пошук у минулих рішеннях...">
@@ -312,6 +436,11 @@ function fillJiraFields(data) {
   }
 }
 
-const observer = new MutationObserver(() => { injectAIButtonIntoDialog(); });
+// --- Ініціалізація ---
+const observer = new MutationObserver(() => {
+  injectAIButtonIntoDialog();
+});
+
 observer.observe(document.body, { childList: true, subtree: true });
 injectAIButtonIntoDialog();
+initQueueEnhancements();
