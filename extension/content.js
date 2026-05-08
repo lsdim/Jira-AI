@@ -164,7 +164,7 @@ function renderTooltipContent(data, key) {
         return `
           <div class="ai-tooltip-ticket-item">
             <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:10px;" title="${issue.fields.summary}">
-              <strong>${issue.key}</strong>: ${issue.fields.summary}
+              <a href="https://jira.ukrposhta.loc/browse/${issue.key}"><strong>${issue.key}</strong></a>: ${issue.fields.summary}
             </span>
             <span class="ai-tooltip-status ${colorClass}">${status}</span>
             <span style="font-size:9px; color:#6b778c; margin-left:10px;">${date}</span>
@@ -474,4 +474,10 @@ const observer = new MutationObserver(() => {
 
 observer.observe(document.body, { childList: true, subtree: true });
 injectAIButtonIntoDialog();
-initQueueEnhancements();
+
+// Перевіряємо налаштування перед запуском тултіпів
+chrome.storage.local.get({ enableQueueTooltip: true }, (items) => {
+  if (items.enableQueueTooltip) {
+    initQueueEnhancements();
+  }
+});

@@ -1,59 +1,189 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Налаштування Jira AI Helper</title>
+  <meta charset="UTF-8">
+  <title>Jira AI Helper Settings</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; width: 450px; background: #f4f5f7; color: #172b4d; }
-    .card { background: white; padding: 20px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    h2 { margin-top: 0; color: #0052cc; border-bottom: 2px solid #ebecf0; padding-bottom: 10px; }
-    .field { margin-bottom: 20px; }
-    label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 14px; }
-    input, textarea { width: 100%; padding: 10px; border: 1px solid #dfe1e6; border-radius: 3px; box-sizing: border-box; }
-    textarea { height: 180px; font-family: monospace; font-size: 12px; line-height: 1.4; }
-    .help-text { font-size: 12px; color: #6b778c; margin-top: 5px; }
-    .help-text a { color: #0052cc; text-decoration: none; font-weight: bold; }
-    .help-text a:hover { text-decoration: underline; }
-    .buttons { display: flex; align-items: center; gap: 15px; }
-    button { padding: 10px 20px; background: #0052cc; color: white; border: none; border-radius: 3px; cursor: pointer; font-weight: bold; }
-    button:hover { background: #0065ff; }
-    .status { font-size: 13px; color: #36b37e; font-weight: bold; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 20px;
+      width: 450px;
+      background-color: #f4f5f7;
+      color: #172b4d;
+      margin: 0;
+    }
+    .container {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(9, 30, 66, 0.15);
+      overflow: hidden;
+    }
+    .header {
+      background: #0052cc;
+      color: white;
+      padding: 16px 20px;
+      margin: 0;
+    }
+    .header h2 { margin: 0; font-size: 18px; }
+    
+    /* Tabs */
+    .tabs {
+      display: flex;
+      background: #ebecf0;
+      border-bottom: 1px solid #dfe1e6;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: #6b778c;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { background: #dfe1e6; color: #172b4d; }
+    .tab-btn.active {
+      background: white;
+      color: #0052cc;
+      border-bottom: 2px solid #0052cc;
+    }
+
+    .tab-content { padding: 20px; display: none; }
+    .tab-content.active { display: block; }
+
+    .field-group { margin-bottom: 15px; }
+    label { display: block; font-weight: 600; font-size: 12px; margin-bottom: 6px; color: #5e6c84; }
+    
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 8px;
+      border: 2px solid #dfe1e6;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 13px;
+    }
+    textarea { height: 120px; resize: vertical; font-family: inherit; }
+    input:focus, textarea:focus { border-color: #4c9aff; outline: none; }
+
+    /* Switch Style */
+    .switch-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 20px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 20px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 14px; width: 14px;
+      left: 3px; bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider { background-color: #36b37e; }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .footer {
+      padding: 15px 20px;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    button#save {
+      background: #0052cc;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button#save:hover { background: #0065ff; }
+    .status { font-size: 12px; color: #36b37e; align-self: center; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h2>Налаштування AI Helper</h2>
-    
-    <div class="field">
-      <label for="apiKey">Gemini API Key:</label>
-      <input type="password" id="apiKey" placeholder="Вставте ваш API ключ...">
-      <div class="help-text">
-        Немає ключа? Отримайте його безкоштовно у <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.
+  <div class="container">
+    <div class="header">
+      <h2>⚙️ Jira AI Helper</h2>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="ai">Штучний інтелект</button>
+      <button class="tab-btn" data-tab="sheets">Таблиці</button>
+      <button class="tab-btn" data-tab="general">Загальні</button>
+    </div>
+
+    <!-- AI Tab -->
+    <div id="ai" class="tab-content active">
+      <div class="field-group">
+        <label for="apiKey">Gemini API Key:</label>
+        <input type="text" id="apiKey" placeholder="Вставте ваш API ключ тут...">
+		<div style="font-size: 11px; color: #6b778c; margin-top: 5px;">
+           Немає ключа? Отримайте його безкоштовно у <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>.
+        </div>
+      </div>
+      <div class="field-group">
+        <label for="prompt">Системний промпт:</label>
+        <textarea id="prompt" placeholder="Налаштуйте поведінку ШІ..."></textarea>
+        <div style="font-size: 10px; color: #6b778c; margin-top: 5px;">
+          Доступні змінні: {{summary}}, {{description}}, {{manualNotes}}
+        </div>
       </div>
     </div>
 
-    <div class="field">
-      <label for="customPrompt">Інструкції для ШІ (Промпт):</label>
-      <textarea id="customPrompt" placeholder="Введіть інструкції для генерації..."></textarea>
-      <div class="help-text">
-        Використовуйте <code>{{summary}}</code>, <code>{{description}}</code> та <code>{{manualNotes}}</code> як змінні.
+    <!-- Sheets Tab -->
+    <div id="sheets" class="tab-content">
+      <div class="field-group">
+        <label for="sheetsUrl">Google Sheets CSV/URL:</label>
+        <input type="text" id="sheetsUrl" placeholder="Посилання на таблицю або CSV...">
+		<div style="font-size: 11px; color: #6b778c; margin-top: 5px;">
+          Таблиця має бути <b>опублікована в інтернеті як CSV</b> (Файл -> Поділитися -> Опублікувати в інтернеті).
+        </div>
       </div>
+      <p style="font-size: 11px; color: #6b778c;">
+        Дані кешуються автоматично кожні <strong>60</strong> хвилин.
+      </p>
     </div>
 
-    <div class="field">
-      <label for="sheetsUrl">Google Таблиця з шаблонами:</label>
-      <input type="text" id="sheetsUrl" placeholder="https://docs.google.com/spreadsheets/d/...">
-      <div class="help-text">
-		Таблиця має бути <b>опублікована в інтернеті як CSV</b> (Файл -> Поділитися -> Опублікувати в інтернеті).
+    <!-- General Tab -->
+    <div id="general" class="tab-content">
+      <div class="switch-wrapper">
+        <label style="margin-bottom: 0;">Попередній перегляд в чергах (Tooltip)</label>
+        <label class="switch">
+          <input type="checkbox" id="enableTooltip">
+          <span class="slider"></span>
+        </label>
       </div>
+      <p style="font-size: 11px; color: #6b778c;">
+        Відображає опис та історію заявника при наведенні на ключ заявки в чергах.
+      </p>
     </div>
 
-    <div class="buttons">
-      <button id="save">Зберегти налаштування</button>
-      <div id="status" class="status"></div>
+    <div class="footer">
+      <span id="status" class="status"></span>
+      <button id="save">Зберегти</button>
     </div>
   </div>
-  <script src="defaults.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
