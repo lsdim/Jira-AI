@@ -159,10 +159,40 @@
 		<div style="font-size: 11px; color: #6b778c; margin-top: 5px;">
           Таблиця має бути <b>опублікована в інтернеті як CSV</b> (Файл -> Поділитися -> Опублікувати в інтернеті).
         </div>
+		<p style="font-size: 10px; color: #6b778c;">
+          Дані кешуються автоматично кожні <strong>60</strong> хвилин.
+        </p>
       </div>
-      <p style="font-size: 11px; color: #6b778c;">
-        Дані кешуються автоматично кожні <strong>60</strong> хвилин.
-      </p>
+
+      <div style="border-top: 1px solid #ebecf0; padding-top: 15px; margin-top: 15px;">
+        <label style="color: #0052cc;">Оформлення відповідей (Шаблони)</label>
+        
+        <div class="field-group" style="margin-top: 10px;">
+          <div class="switch-wrapper">
+            <label style="font-size: 11px;">Додавати привітання ("Добрий день")</label>
+            <label class="switch"><input type="checkbox" id="enableGreeting"><span class="slider"></span></label>
+          </div>
+          <input type="text" id="greetingText" placeholder="Добрий день" style="font-size: 12px;">
+        </div>
+
+        <div class="field-group">
+          <div class="switch-wrapper">
+            <label style="font-size: 11px;">Додавати примітку для Консультацій</label>
+            <label class="switch"><input type="checkbox" id="enableConsultNote"><span class="slider"></span></label>
+          </div>
+          <textarea id="consultNoteText" style="height: 60px; font-size: 11px;" placeholder="Дане звернення буде закрито..."></textarea>
+        </div>
+
+        <div class="field-group">
+          <div class="switch-wrapper">
+            <label style="font-size: 11px;">Додавати підпис</label>
+            <label class="switch"><input type="checkbox" id="enableSignature"><span class="slider"></span></label>
+          </div>
+          <input type="text" id="signatureText" placeholder="З повагою, ІТ підтримка АТ Укрпошта" style="font-size: 12px;">
+        </div>
+      </div>
+
+      
     </div>
 
     <!-- General Tab -->

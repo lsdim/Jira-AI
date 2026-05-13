@@ -440,11 +440,16 @@ function fillJiraFields(data) {
   }
 
   if (resolutionField) {
-    // Автоматично визначаємо результат: Консультація (10310) або Вирішена (10309)
-    const isConsultation = data.executedWorks.toLowerCase().includes('консультац');
-    resolutionField.value = isConsultation ? '10310' : '10309';
+    if (data.resolutionCode) {
+      // Використовуємо код, переданий із шаблонів
+      resolutionField.value = data.resolutionCode;
+    } else {
+      // Автоматично визначаємо результат для ШІ: Консультація (10310) або Вирішена (10309)
+      const isConsultation = data.executedWorks.toLowerCase().includes('консультац');
+      resolutionField.value = isConsultation ? '10310' : '10309';
+    }
     resolutionField.dispatchEvent(new Event('change', { bubbles: true }));
-    console.log(`AI Helper: Resolution set to ${isConsultation ? 'Consultation (10310)' : 'Resolved (10309)'}`);
+    console.log(`AI Helper: Resolution set to ${resolutionField.value}`);
   }
   const commentIframe = document.querySelector('iframe[id^="mce_"][id$="_ifr"]');
   if (commentIframe?.contentDocument) {

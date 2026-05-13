@@ -2,32 +2,17 @@
 
 const SHEETS_CONFIG = {
     cols: {
-        tag: 2,
         index: 0,
-        name: 3,
-        works: 5,
-        subject: 3,
         resolution: 1,
+        tag: 2,
+        name: 3,
+        subject: 3,
+        works: 5,
         template: 6,
         pdfNeeded: 7,
         files: 8
     }
 };
-
-/*
-const SHEETS_CONFIG = {
-    cols: {
-        tag: 0,
-        index: 1,
-        name: 2,
-        works: 3,
-        subject: 4,
-        template: 5,
-        pdfNeeded: 6,
-        files: 7
-    }
-};
-*/
 
 let cachedSheetsData = [];
 
@@ -54,17 +39,11 @@ async function fetchSheetData() {
     const url = storage.sheetsUrl;
     if (!url) throw new Error('Посилання на таблицю не налаштовано в параметрах!');
 
-    let csvUrl = '';
-
-    // Перевіряємо, чи це вже пряме посилання на CSV (опублікована таблиця)
-    if (url.includes('output=csv')) {
-        csvUrl = url;
-    } else {
-        // Якщо це звичайне посилання на редагування, парсимо його
+    let csvUrl = url.includes('output=csv') ? url : (() => {
         const parsed = parseSheetUrl(url);
         if (!parsed || !parsed.id) throw new Error('Некоректне посилання на Google Таблицю!');
-        csvUrl = `https://docs.google.com/spreadsheets/d/${parsed.id}/export?format=csv&gid=${parsed.gid}`;
-    }
+        return `https://docs.google.com/spreadsheets/d/${parsed.id}/export?format=csv&gid=${parsed.gid}`;
+    })();
     
     try {
         console.log('AI Helper: Кеш порожній, завантаження:', csvUrl);
@@ -120,11 +99,12 @@ function parseCSV(text) {
     }
     if (row.length > 0 || col !== '') { row.push(col); result.push(row); }
     return result.slice(1).map(r => ({
-        tag: r[SHEETS_CONFIG.cols.tag] || '',
         index: r[SHEETS_CONFIG.cols.index] || '',
+        resolution: r[SHEETS_CONFIG.cols.resolution] || '',
+        tag: r[SHEETS_CONFIG.cols.tag] || '',
         name: r[SHEETS_CONFIG.cols.name] || '',
-        works: r[SHEETS_CONFIG.cols.works] || '',
         subject: r[SHEETS_CONFIG.cols.subject] || '',
+        works: r[SHEETS_CONFIG.cols.works] || '',
         template: r[SHEETS_CONFIG.cols.template] || '',
         pdf: r[SHEETS_CONFIG.cols.pdfNeeded] || '',
         files: r[SHEETS_CONFIG.cols.files] || ''
@@ -145,8 +125,12 @@ function showTemplateDetails(item, parentWrapper) {
             </div>
             <div class="ai-details-body">
                 <div class="ai-details-row">
-                    <span class="ai-details-label">Коротка назва</span>
+                    <span class="ai-details-label">Назва</span>
                     <div style="font-weight:bold; color:#0052cc;">${item.name}</div>
+                </div>
+                <div class="ai-details-row">
+                    <span class="ai-details-label">Тип рішення</span>
+                    <div class="ai-details-text">${item.resolution}</div>
                 </div>
                 <div class="ai-details-row">
                     <span class="ai-details-label">Виконані роботи</span>
@@ -320,8 +304,32 @@ async function openSheetsModal() {
     loadAndShow();
 }
 
-function applyTemplate(item) {
-    const data = { executedWorks: item.works, userComment: item.template };
+async function applyTemplate(item) {
+    const settings = await chrome.storage.local.get({
+        enableGreeting: true,
+        greetingText: 'Добрий день',
+        enableConsultNote: true,
+        consultNoteText: 'Дане звернення буде закрито. Центр звернень користувачів приймає та обробляє заявки які стосуються виключно ІТ питань та проблем що виникли на робочому пристрої співробітників, надіслані через корпоративні методи зв\'язку',
+        enableSignature: true,
+        signatureText: 'З повагою, ІТ підтримка АТ "Укрпошта"'
+    });
+
+    let finalTemplate = item.template;
+    const isConsultation = item.resolution.toLowerCase().includes('консультація');
+
+    // Збираємо текст: Привітання + Шаблон + Примітка + Підпис
+    let parts = [];
+    if (settings.enableGreeting && settings.greetingText) parts.push(settings.greetingText);
+    parts.push(finalTemplate);
+    if (isConsultation && settings.enableConsultNote && settings.consultNoteText) parts.push(settings.consultNoteText);
+    if (settings.enableSignature && settings.signatureText) parts.push(settings.signatureText);
+
+    const data = {
+        executedWorks: item.works,
+        userComment: parts.join('\n\n'),
+        resolutionCode: isConsultation ? '10310' : '10309'
+    };
+
     if (typeof fillJiraFields === 'function') {
         fillJiraFields(data);
         if (item.pdf.toLowerCase() === 'так') {

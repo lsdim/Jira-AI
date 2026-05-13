@@ -11,17 +11,21 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
 // Збереження налаштувань
 document.getElementById('save').onclick = () => {
-  const apiKey = document.getElementById('apiKey').value;
-  const userPrompt = document.getElementById('prompt').value;
-  const sheetsUrl = document.getElementById('sheetsUrl').value;
-  const enableQueueTooltip = document.getElementById('enableTooltip').checked;
+  const settings = {
+    geminiApiKey: document.getElementById('apiKey').value,
+    userPrompt: document.getElementById('prompt').value,
+    sheetsUrl: document.getElementById('sheetsUrl').value,
+    enableQueueTooltip: document.getElementById('enableTooltip').checked,
+    // Нові налаштування оформлення
+    enableGreeting: document.getElementById('enableGreeting').checked,
+    greetingText: document.getElementById('greetingText').value,
+    enableConsultNote: document.getElementById('enableConsultNote').checked,
+    consultNoteText: document.getElementById('consultNoteText').value,
+    enableSignature: document.getElementById('enableSignature').checked,
+    signatureText: document.getElementById('signatureText').value
+  };
 
-  chrome.storage.local.set({
-    geminiApiKey: apiKey,
-    userPrompt: userPrompt,
-    sheetsUrl: sheetsUrl,
-    enableQueueTooltip: enableQueueTooltip
-  }, () => {
+  chrome.storage.local.set(settings, () => {
     const status = document.getElementById('status');
     status.textContent = '✅ Збережено';
     setTimeout(() => { status.textContent = ''; }, 2000);
@@ -34,13 +38,25 @@ function loadOptions() {
     geminiApiKey: '',
     userPrompt: '',
     sheetsUrl: '',
-    enableQueueTooltip: true // За замовчуванням увімкнено
+    enableQueueTooltip: true,
+    enableGreeting: true,
+    greetingText: 'Добрий день',
+    enableConsultNote: true,
+    consultNoteText: 'Дане звернення буде закрито. Центр звернень користувачів приймає та обробляє заявки які стосуються виключно ІТ питань та проблем що виникли на робочому пристрої співробітників, надіслані через корпоративні методи зв\'язку',
+    enableSignature: true,
+    signatureText: 'З повагою, ІТ підтримка АТ "Укрпошта"'
   }, (items) => {
     document.getElementById('apiKey').value = items.geminiApiKey;
-    // Якщо користувацького промпту немає — показуємо стандартний
     document.getElementById('prompt').value = items.userPrompt || window.DEFAULT_PROMPT || '';
     document.getElementById('sheetsUrl').value = items.sheetsUrl;
     document.getElementById('enableTooltip').checked = items.enableQueueTooltip;
+    
+    document.getElementById('enableGreeting').checked = items.enableGreeting;
+    document.getElementById('greetingText').value = items.greetingText;
+    document.getElementById('enableConsultNote').checked = items.enableConsultNote;
+    document.getElementById('consultNoteText').value = items.consultNoteText;
+    document.getElementById('enableSignature').checked = items.enableSignature;
+    document.getElementById('signatureText').value = items.signatureText;
   });
 }
 
