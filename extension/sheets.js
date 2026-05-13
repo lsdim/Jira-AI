@@ -2,6 +2,21 @@
 
 const SHEETS_CONFIG = {
     cols: {
+        tag: 2,
+        index: 0,
+        name: 3,
+        works: 5,
+        subject: 3,
+        resolution: 1,
+        template: 6,
+        pdfNeeded: 7,
+        files: 8
+    }
+};
+
+/*
+const SHEETS_CONFIG = {
+    cols: {
         tag: 0,
         index: 1,
         name: 2,
@@ -12,6 +27,7 @@ const SHEETS_CONFIG = {
         files: 7
     }
 };
+*/
 
 let cachedSheetsData = [];
 
@@ -133,10 +149,6 @@ function showTemplateDetails(item, parentWrapper) {
                     <div style="font-weight:bold; color:#0052cc;">${item.name}</div>
                 </div>
                 <div class="ai-details-row">
-                    <span class="ai-details-label">Тема заявки</span>
-                    <div class="ai-details-text">${item.subject}</div>
-                </div>
-                <div class="ai-details-row">
                     <span class="ai-details-label">Виконані роботи</span>
                     <div class="ai-details-text">${item.works}</div>
                 </div>
@@ -241,9 +253,6 @@ async function openSheetsModal() {
                     </div>
                 </div>
                 <div style="font-weight: bold; font-size: 14px; color: #0052cc;">${item.name}</div>
-                <div style="font-size: 11px; color: #172b4d; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" title="${item.subject.replace(/"/g, '&quot;')}">
-                    <strong>Тема:</strong> ${item.subject}
-                </div>
                 <div style="font-size: 11px; color: #5e6c84; background: #f9fafb; padding: 8px; border-radius: 4px; border: 1px dashed #dfe1e6; flex: 1; white-space: pre-line;">
                     ${item.works.length > 150 ? item.works.substring(0, 150) + '...' : item.works}
                 </div>
