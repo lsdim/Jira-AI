@@ -59,17 +59,37 @@ async function fetchSheetData() {
     }
 }
 
-async function getSheetsHistory() {
-    const data = await chrome.storage.local.get('usedSheetsTemplates');
-    return data.usedSheetsTemplates || [];
+async function getSheetsMetadata() {
+    const data = await chrome.storage.local.get('sheetsMetadata');
+    return data.sheetsMetadata || {};
 }
 
 async function saveToSheetsHistory(item) {
-    const history = await getSheetsHistory();
-    // Використовуємо комбінацію теми та тегу як унікальний ключ
-    const itemKey = `${item.tag} | ${item.subject}`;
-    const newHistory = [item, ...history.filter(h => `${h.tag} | ${h.subject}` !== itemKey)].slice(0, 20);
-    await chrome.storage.local.set({ usedSheetsTemplates: newHistory });
+    const metadata = await getSheetsMetadata();
+    const id = `${item.tag}|${item.index}|${item.name}`;
+    
+    if (!metadata[id]) {
+        metadata[id] = { count: 0, isFavorite: false, item: item };
+    }
+    metadata[id].count += 1;
+    metadata[id].item = item; // Оновлюємо дані на випадок змін у таблиці
+    
+    await chrome.storage.local.set({ sheetsMetadata: metadata });
+}
+
+async function toggleFavorite(item, event) {
+    if (event) event.stopPropagation();
+    const metadata = await getSheetsMetadata();
+    const id = `${item.tag}|${item.index}|${item.name}`;
+    
+    if (!metadata[id]) {
+        metadata[id] = { count: 0, isFavorite: false, item: item };
+    }
+    metadata[id].isFavorite = !metadata[id].isFavorite;
+    
+    await chrome.storage.local.set({ sheetsMetadata: metadata });
+    // Подія для оновлення UI без повного перезавантаження, якщо потрібно
+    return metadata[id].isFavorite;
 }
 
 function parseCSV(text) {
@@ -174,19 +194,21 @@ async function openSheetsModal() {
     const modal = document.createElement('div');
     modal.id = 'ai-helper-modal';
     
-    let historyData = await getSheetsHistory();
+    let metadata = await getSheetsMetadata();
+    let showOnlyFavorites = false;
 
     modal.innerHTML = `
         <div class="ai-modal-wrapper" id="ai-sheets-wrapper" style="width: 1000px; height: 650px;">
             <div class="ai-modal-main">
-                <button class="ai-toggle-history-btn" id="sheets-history-toggle">Останні (H)</button>
+                <button class="ai-toggle-history-btn" id="sheets-history-toggle">Популярні (H)</button>
                 <div class="ai-main-header">
                     <h3>📚 База шаблонів (Google Sheets)</h3>
-                    <div style="display: flex; gap: 12px; margin-top: 15px;">
-                        <input type="text" id="sheet-search" class="ai-history-search" placeholder="Пошук за ключовими словами..." style="flex: 2;">
+                    <div style="display: flex; gap: 12px; margin-top: 15px; align-items: center;">
+                        <input type="text" id="sheet-search" class="ai-history-search" placeholder="Пошук за ключовими словами..." style="flex: 2; margin-bottom: 0;">
                         <select id="tag-filter" style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #dfe1e6; font-size: 13px;">
                             <option value="">Всі теги</option>
                         </select>
+                        <button id="favorite-filter-btn" title="Показати лише обране" style="background: none; border: 1px solid #dfe1e6; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 18px; color: #6b778c; transition: all 0.2s;">☆</button>
                     </div>
                 </div>
                 <div class="ai-main-content" style="padding: 0; overflow: hidden; background: #f4f5f7;">
@@ -199,7 +221,7 @@ async function openSheetsModal() {
                 </div>
             </div>
             <div class="ai-modal-sidebar collapsed" id="sheets-sidebar">
-                <div class="ai-history-header"><label>Останні використані</label></div>
+                <div class="ai-history-header"><label>🔥 Найчастіші</label></div>
                 <div class="ai-history-list" id="sheets-history-list"></div>
             </div>
         </div>
@@ -212,20 +234,35 @@ async function openSheetsModal() {
     const tagFilter = document.getElementById('tag-filter');
     const sidebar = document.getElementById('sheets-sidebar');
     const historyList = document.getElementById('sheets-history-list');
+    const favFilterBtn = document.getElementById('favorite-filter-btn');
 
     const renderHistory = () => {
-        if (historyData.length === 0) {
-            historyList.innerHTML = '<div style="padding: 20px; font-size: 11px; color: #888; text-align: center;">Історія порожня</div>';
+        // Сортуємо метадані за кількістю використань
+        const popular = Object.values(metadata)
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 15);
+
+        if (popular.length === 0) {
+            historyList.innerHTML = '<div style="padding: 20px; font-size: 11px; color: #888; text-align: center;">Ви ще не використовували шаблони</div>';
             return;
         }
-        historyList.innerHTML = historyData.map((h, idx) => `
-            <div class="ai-history-item" data-hidx="${idx}" title="${h.subject.replace(/"/g, '&quot;')}">
-                <div style="font-weight: bold; color: #0052cc; font-size: 11px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${h.subject}</div>
-                <div style="font-size: 10px; color: #6b778c; margin-top: 4px;">${h.tag}</div>
+        historyList.innerHTML = popular.map((meta, idx) => `
+            <div class="ai-history-item" data-id="${idx}" title="${meta.item.name}">
+                <div style="font-weight: bold; color: #0052cc; font-size: 11px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${meta.item.name}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                    <span style="font-size: 10px; color: #6b778c;">${meta.item.tag}</span>
+                    <span style="font-size: 10px; font-weight: bold; color: #36b37e;">${meta.count}×</span>
+                </div>
             </div>
         `).join('');
-        historyList.querySelectorAll('.ai-history-item').forEach(el => {
-            el.onclick = () => { applyTemplate(historyData[el.dataset.hidx]); modal.remove(); };
+        
+        historyList.querySelectorAll('.ai-history-item').forEach((el, idx) => {
+            el.onclick = async () => { 
+                const item = popular[idx].item;
+                await saveToSheetsHistory(item); // Збільшуємо лічильник
+                applyTemplate(item); 
+                modal.remove(); 
+            };
         });
     };
 
@@ -234,26 +271,31 @@ async function openSheetsModal() {
             container.innerHTML = '<div style="grid-column: span 2; text-align:center; padding:50px; color:#6b778c;">Нічого не знайдено</div>';
             return;
         }
-        container.innerHTML = dataToRender.map((item, idx) => `
-            <div class="sheet-template-card" data-idx="${idx}" style="background:white; padding:15px; border-radius:8px; border:1px solid #dfe1e6; cursor:pointer; transition:all 0.2s; display:flex; flex-direction:column; gap:8px; position:relative;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span class="ai-service-tag" style="font-size:10px;">${item.tag}</span>
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        <button class="sheet-preview-btn" data-previdx="${idx}" title="Швидкий перегляд">👁</button>
-                        <span style="font-size: 10px; color: #97a0af; font-weight:bold;">#${item.index}</span>
+        container.innerHTML = dataToRender.map((item, idx) => {
+            const id = `${item.tag}|${item.index}|${item.name}`;
+            const isFav = metadata[id]?.isFavorite || false;
+            return `
+                <div class="sheet-template-card" data-idx="${idx}" style="background:white; padding:15px; border-radius:8px; border:1px solid #dfe1e6; cursor:pointer; transition:all 0.2s; display:flex; flex-direction:column; gap:8px; position:relative;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="ai-service-tag" style="font-size:10px;">${item.tag}</span>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button class="sheet-favorite-btn" data-favidx="${idx}" title="${isFav ? 'Видалити з обраного' : 'Додати в обране'}" style="background:none; border:none; cursor:pointer; font-size:18px; color: ${isFav ? '#ffab00' : '#dfe1e6'}; transition: scale 0.2s;">${isFav ? '★' : '☆'}</button>
+                            <button class="sheet-preview-btn" data-previdx="${idx}" title="Швидкий перегляд">👁</button>
+                            <span style="font-size: 10px; color: #97a0af; font-weight:bold;">#${item.index}</span>
+                        </div>
                     </div>
+                    <div style="font-weight: bold; font-size: 14px; color: #0052cc; padding-right: 20px;">${item.name}</div>
+                    <div style="font-size: 11px; color: #5e6c84; background: #f9fafb; padding: 8px; border-radius: 4px; border: 1px dashed #dfe1e6; flex: 1; white-space: pre-line;">
+                        ${item.works.length > 150 ? item.works.substring(0, 150) + '...' : item.works}
+                    </div>
+                    ${item.pdf.toLowerCase() === 'так' ? '<div style="font-size:10px; color:#de350b; font-weight:bold;">📎 Файл: ' + item.files + '</div>' : ''}
                 </div>
-                <div style="font-weight: bold; font-size: 14px; color: #0052cc;">${item.name}</div>
-                <div style="font-size: 11px; color: #5e6c84; background: #f9fafb; padding: 8px; border-radius: 4px; border: 1px dashed #dfe1e6; flex: 1; white-space: pre-line;">
-                    ${item.works.length > 150 ? item.works.substring(0, 150) + '...' : item.works}
-                </div>
-                ${item.pdf.toLowerCase() === 'так' ? '<div style="font-size:10px; color:#de350b; font-weight:bold;">📎 Файл: ' + item.files + '</div>' : ''}
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
         container.querySelectorAll('.sheet-template-card').forEach(card => {
             card.onclick = async (e) => {
-                if (e.target.closest('.sheet-preview-btn')) return;
+                if (e.target.closest('.sheet-preview-btn') || e.target.closest('.sheet-favorite-btn')) return;
                 const item = dataToRender[card.dataset.idx];
                 await saveToSheetsHistory(item);
                 applyTemplate(item);
@@ -267,14 +309,33 @@ async function openSheetsModal() {
                 showTemplateDetails(dataToRender[btn.dataset.previdx], wrapper);
             };
         });
+
+        container.querySelectorAll('.sheet-favorite-btn').forEach(btn => {
+            btn.onmouseover = () => btn.style.transform = 'scale(1.3)';
+            btn.onmouseout = () => btn.style.transform = 'scale(1)';
+            btn.onclick = async (e) => {
+                const item = dataToRender[btn.dataset.favidx];
+                const isNowFav = await toggleFavorite(item, e);
+                metadata = await getSheetsMetadata(); // Оновлюємо локальні метадані
+                btn.innerHTML = isNowFav ? '★' : '☆';
+                btn.style.color = isNowFav ? '#ffab00' : '#dfe1e6';
+                renderHistory(); // Оновлюємо сайдбар
+                if (showOnlyFavorites) handleFilter(); // Якщо ми у фільтрі обраного — перемальовуємо
+            };
+        });
     };
 
     const handleFilter = () => {
         const query = searchInput.value.toLowerCase();
         const tag = tagFilter.value;
         const filtered = cachedSheetsData.filter(item => {
-            const searchSource = `${item.tag} ${item.name} ${item.works} ${item.subject} ${item.template}`.toLowerCase();
-            return searchSource.includes(query) && (!tag || item.tag === tag);
+            const id = `${item.tag}|${item.index}|${item.name}`;
+            const isFav = metadata[id]?.isFavorite || false;
+            const searchSource = `${item.tag} ${item.name} ${item.works} ${item.template}`.toLowerCase();
+            const matchesSearch = searchSource.includes(query);
+            const matchesTag = !tag || item.tag === tag;
+            const matchesFav = !showOnlyFavorites || isFav;
+            return matchesSearch && matchesTag && matchesFav;
         });
         renderResults(filtered);
     };
@@ -283,10 +344,8 @@ async function openSheetsModal() {
         if (forceUpdate) {
             container.innerHTML = '<div style="grid-column: span 2; text-align: center; padding: 40px;">Оновлення бази з Google Sheets... 🔃</div>';
             await chrome.storage.local.remove('cachedCsvText');
-        } else {
-            if (!cachedSheetsData.length) {
-                container.innerHTML = '<div style="grid-column: span 2; text-align: center; padding: 40px;">Завантаження... 🔃</div>';
-            }
+        } else if (!cachedSheetsData.length) {
+            container.innerHTML = '<div style="grid-column: span 2; text-align: center; padding: 40px;">Завантаження... 🔃</div>';
         }
 
         try {
@@ -304,6 +363,14 @@ async function openSheetsModal() {
 
     searchInput.oninput = handleFilter;
     tagFilter.onchange = handleFilter;
+    
+    favFilterBtn.onclick = () => {
+        showOnlyFavorites = !showOnlyFavorites;
+        favFilterBtn.innerHTML = showOnlyFavorites ? '★' : '☆';
+        favFilterBtn.style.color = showOnlyFavorites ? '#ffab00' : '#6b778c';
+        favFilterBtn.style.borderColor = showOnlyFavorites ? '#ffab00' : '#dfe1e6';
+        handleFilter();
+    };
 
     document.getElementById('sheets-history-toggle').onclick = () => sidebar.classList.toggle('collapsed');
     document.getElementById('sheets-refresh-btn').onclick = () => loadAndShow(true);
