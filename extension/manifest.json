@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Jira AI Helper",
-  "version": "1.4",
+  "version": "1.5",
   "description": "Автоматизація закриття заявок Jira за допомогою Gemini AI",
   "permissions": ["storage", "alarms"],
   "host_permissions": [
@@ -17,7 +17,6 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "jira-ai-helper@lsdim",
-      "update_url": "https://raw.githubusercontent.com/lsdim/Jira-AI/master/update.json",
       "data_collection_permissions": {
         "required": [
           "none"
