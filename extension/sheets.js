@@ -204,12 +204,17 @@ async function openSheetsModal() {
     modal.id = 'ai-helper-modal';
     
     let metadata = await getSheetsMetadata();
+    const storage = await chrome.storage.local.get({ sidebarPinned: false });
+    let isPinned = storage.sidebarPinned;
     let showOnlyFavorites = false;
 
     modal.innerHTML = `
         <div class="ai-modal-wrapper" id="ai-sheets-wrapper" style="width: 1000px; height: 650px;">
             <div class="ai-modal-main">
-                <button class="ai-toggle-history-btn" id="sheets-history-toggle">Популярні (H)</button>
+                <div style="position: absolute; right: 20px; top: 18px; display: flex; gap: 8px; z-index: 10;">
+                    <button class="ai-toggle-history-btn" id="sheets-history-toggle" style="position: static;">Популярні (H)</button>
+                    <button id="sheets-sidebar-pin" class="ai-toggle-history-btn" style="position: static; padding: 6px 10px; background: ${isPinned ? '#deebff' : 'white'}" title="${isPinned ? 'Відкріпити' : 'Закріпити'}">${isPinned ? '📍' : '📌'}</button>
+                </div>
                 <div class="ai-main-header">
                     <h3>📚 База шаблонів (Google Sheets)</h3>
                     <div style="display: flex; gap: 12px; margin-top: 15px; align-items: center;">
@@ -229,7 +234,7 @@ async function openSheetsModal() {
                     <button id="ai-close-sheets-btn" class="aui-button aui-button-link">Закрити</button>
                 </div>
             </div>
-            <div class="ai-modal-sidebar collapsed" id="sheets-sidebar">
+            <div class="ai-modal-sidebar ${isPinned ? '' : 'collapsed'}" id="sheets-sidebar">
                 <div class="ai-history-header"><label>🔥 Найчастіші</label></div>
                 <div class="ai-history-list" id="sheets-history-list"></div>
             </div>
@@ -244,6 +249,17 @@ async function openSheetsModal() {
     const sidebar = document.getElementById('sheets-sidebar');
     const historyList = document.getElementById('sheets-history-list');
     const favFilterBtn = document.getElementById('favorite-filter-btn');
+    const pinBtn = document.getElementById('sheets-sidebar-pin');
+
+    // Логіка закріплення
+    pinBtn.onclick = async () => {
+        isPinned = !isPinned;
+        await chrome.storage.local.set({ sidebarPinned: isPinned });
+        pinBtn.innerHTML = isPinned ? '📍' : '📌';
+        pinBtn.style.background = isPinned ? '#deebff' : 'white';
+        pinBtn.title = isPinned ? 'Відкріпити' : 'Закріпити';
+        if (isPinned) sidebar.classList.remove('collapsed');
+    };
 
     const renderHistory = () => {
         // Сортуємо метадані за кількістю використань
