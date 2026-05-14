@@ -92,6 +92,15 @@ async function toggleFavorite(item, event) {
     return metadata[id].isFavorite;
 }
 
+async function removeFromSheetsHistory(item) {
+    const metadata = await getSheetsMetadata();
+    const id = `${item.tag}|${item.index}|${item.name}`;
+    if (metadata[id]) {
+        delete metadata[id];
+        await chrome.storage.local.set({ sheetsMetadata: metadata });
+    }
+}
+
 function parseCSV(text) {
     const result = [];
     let row = [];
@@ -248,20 +257,35 @@ async function openSheetsModal() {
         }
         historyList.innerHTML = popular.map((meta, idx) => `
             <div class="ai-history-item" data-id="${idx}" title="${meta.item.name}">
-                <div style="font-weight: bold; color: #0052cc; font-size: 11px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${meta.item.name}</div>
+                <div style="font-weight: bold; color: #0052cc; font-size: 11px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-right: 15px;">${meta.item.name}</div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
                     <span style="font-size: 10px; color: #6b778c;">${meta.item.tag}</span>
                     <span style="font-size: 10px; font-weight: bold; color: #36b37e;">${meta.count}×</span>
                 </div>
+                <div class="ai-history-item-delete" data-delidx="${idx}" title="Прибрати з популярних">×</div>
             </div>
         `).join('');
         
         historyList.querySelectorAll('.ai-history-item').forEach((el, idx) => {
-            el.onclick = async () => { 
+            el.onclick = async (e) => { 
+                if (e.target.classList.contains('ai-history-item-delete')) return;
                 const item = popular[idx].item;
                 await saveToSheetsHistory(item); // Збільшуємо лічильник
                 applyTemplate(item); 
                 modal.remove(); 
+            };
+        });
+
+        historyList.querySelectorAll('.ai-history-item-delete').forEach(btn => {
+            btn.onclick = async (e) => {
+                e.stopPropagation();
+                const item = popular[btn.dataset.delidx].item;
+                if (confirm(`Прибрати шаблон "${item.name}" зі списку популярних?`)) {
+                    await removeFromSheetsHistory(item);
+                    metadata = await getSheetsMetadata(); // Оновлюємо локальну копію
+                    renderHistory();
+                    handleFilter(); // Щоб оновити зірочки в основній сітці, якщо треба
+                }
             };
         });
     };
