@@ -371,7 +371,7 @@ async function openSheetsModal() {
         const filtered = cachedSheetsData.filter(item => {
             const id = `${item.tag}|${item.index}|${item.name}`;
             const isFav = metadata[id]?.isFavorite || false;
-            const searchSource = `${item.tag} ${item.name} ${item.works} ${item.template}`.toLowerCase();
+            const searchSource = `${item.index} ${item.tag} ${item.name} ${item.works} ${item.template}`.toLowerCase();
             const matchesSearch = searchSource.includes(query);
             const matchesTag = !tag || item.tag === tag;
             const matchesFav = !showOnlyFavorites || isFav;
