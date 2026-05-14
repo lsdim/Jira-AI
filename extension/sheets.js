@@ -113,6 +113,13 @@ function parseCSV(text) {
 
 // Функція показу повних деталей шаблону
 function showTemplateDetails(item, parentWrapper) {
+    // Визначаємо стиль в залежності від типу рішення
+    const res = (item.resolution || '').toLowerCase();
+    let resStyle = '';
+    if (res.includes('вирішено')) resStyle = 'background:#e3fce1; color:#006644; border-color:#b3f5ad;';
+    else if (res.includes('консультац')) resStyle = 'background:#fff0b3; color:#172b4d; border-color:#ffe380;';
+    else if (res.includes('l1')) resStyle = 'background:#deebff; color:#0747a6; border-color:#cce0ff;';
+
     const overlay = document.createElement('div');
     overlay.className = 'ai-details-overlay';
     overlay.innerHTML = `
@@ -130,7 +137,7 @@ function showTemplateDetails(item, parentWrapper) {
                 </div>
                 <div class="ai-details-row">
                     <span class="ai-details-label">Тип рішення</span>
-                    <div class="ai-details-text">${item.resolution}</div>
+                    <div class="ai-service-tag" style="${resStyle}">${item.resolution}</div>
                 </div>
                 <div class="ai-details-row">
                     <span class="ai-details-label">Виконані роботи</span>
