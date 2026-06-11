@@ -361,6 +361,41 @@
 .status-green { background: #e3fce1; color: #006644; }
 .status-yellow { background: #fff0b3; color: #172b4d; }
 
+/* Стилі для підсвітки IP */
+.ai-ip-highlight {
+  background: #ebecf0;
+  color: #0747a6;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #dfe1e6;
+  transition: all 0.2s;
+  display: inline-block;
+  line-height: 1.2;
+}
+.ai-ip-highlight:hover {
+  background: #deebff;
+  border-color: #4c9aff;
+  color: #0052cc;
+}
+.ai-ip-highlight.copied {
+  background: #e3fce1;
+  border-color: #36b37e;
+  color: #006644;
+}
+/*.ai-ip-highlight::after {
+  content: "📋";
+  font-size: 10px;
+  margin-left: 4px;
+  opacity: 0.5;
+}*/
+.ai-ip-highlight.copied::after {
+  content: "✅";
+  opacity: 1;
+}
+
 @keyframes ai-pulse {
   0% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.5); opacity: 0.5; }

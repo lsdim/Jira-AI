@@ -10,9 +10,57 @@ const JIRA_CONFIG = {
     dialogExecutedWorks: '#customfield_10831', // Виконані роботи
     dialogComment: '#comment', // Коментар
     // Селектор для ключів заявок у таблицях черг
-    ticketKeyLink: 'a.issue-link[data-issue-key]'
+    ticketKeyLink: 'a.issue-link[data-issue-key]',
+    // Поле з IP адресою
+    ipCustomField: '#customfield_10616-val'
   }
 };
+
+const IP_REGEX = /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g;
+
+// Функція підсвітки IP
+function processIPHighlights() {
+  const selectors = [JIRA_CONFIG.selectors.description, JIRA_CONFIG.selectors.ipCustomField];
+  
+  selectors.forEach(sel => {
+    const el = document.querySelector(sel);
+    if (!el || el.querySelector('.ai-ip-highlight')) return;
+
+    // Працюємо з текстовими вузлами, щоб не пошкодити існуючу розмітку
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+    let node;
+    const nodesToReplace = [];
+
+    while (node = walker.nextNode()) {
+      if (IP_REGEX.test(node.nodeValue)) {
+        nodesToReplace.push(node);
+      }
+    }
+
+    nodesToReplace.forEach(textNode => {
+      const span = document.createElement('span');
+      span.innerHTML = textNode.nodeValue.replace(IP_REGEX, match => 
+        `<span class="ai-ip-highlight" title="Натисніть щоб копіювати">${match}</span>`
+      );
+      textNode.parentNode.replaceChild(span, textNode);
+    });
+  });
+}
+
+// Глобальний обробник кліку для копіювання IP
+document.addEventListener('click', async (e) => {
+  if (e.target.classList.contains('ai-ip-highlight')) {
+    const ip = e.target.innerText.trim();
+    try {
+      await navigator.clipboard.writeText(ip);
+      const btn = e.target;
+      btn.classList.add('copied');
+      setTimeout(() => btn.classList.remove('copied'), 2000);
+    } catch (err) {
+      console.error('Помилка копіювання:', err);
+    }
+  }
+});
 
 // --- Секція AI та шаблонів ---
 function injectAIButtonIntoDialog() {
@@ -479,10 +527,12 @@ function fillJiraFields(data) {
 // --- Ініціалізація ---
 const observer = new MutationObserver(() => {
   injectAIButtonIntoDialog();
+  processIPHighlights();
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
 injectAIButtonIntoDialog();
+processIPHighlights();
 
 // Перевіряємо налаштування перед запуском тултіпів
 chrome.storage.local.get({ enableQueueTooltip: true }, (items) => {
