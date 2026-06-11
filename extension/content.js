@@ -452,21 +452,27 @@ function fillJiraFields(data) {
     console.log(`AI Helper: Resolution set to ${resolutionField.value}`);
   }
   const commentIframe = document.querySelector('iframe[id^="mce_"][id$="_ifr"]');
+  const hiddenTextarea = document.querySelector(JIRA_CONFIG.selectors.dialogComment);
+  
   if (commentIframe?.contentDocument) {
     const editorBody = commentIframe.contentDocument.getElementById('tinymce');
     if (editorBody) {
       // Замінюємо переноси рядків на <br> для HTML редактора
-      const htmlContent = data.userComment.replace(/\n/g, '<br>');
+      const htmlContent = (data.userComment || '').replace(/\n/g, '<br>');
       editorBody.innerHTML = `<p>${htmlContent}</p>`;
-      const hiddenTextarea = document.querySelector(JIRA_CONFIG.selectors.dialogComment);
-      if (hiddenTextarea) hiddenTextarea.value = data.userComment;
+      // Сповіщаємо редактор про зміну вмісту
+      editorBody.dispatchEvent(new Event('input', { bubbles: true }));
+      
+      if (hiddenTextarea) {
+        hiddenTextarea.value = data.userComment || '';
+        hiddenTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+        hiddenTextarea.dispatchEvent(new Event('change', { bubbles: true }));
+      }
     }
-  } else {
-    const commentField = document.querySelector(JIRA_CONFIG.selectors.dialogComment);
-    if (commentField) {
-      commentField.value = data.userComment;
-      commentField.dispatchEvent(new Event('change', { bubbles: true }));
-    }
+  } else if (hiddenTextarea) {
+    hiddenTextarea.value = data.userComment || '';
+    hiddenTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+    hiddenTextarea.dispatchEvent(new Event('change', { bubbles: true }));
   }
 }
 
