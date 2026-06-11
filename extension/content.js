@@ -527,16 +527,20 @@ function fillJiraFields(data) {
 // --- Ініціалізація ---
 const observer = new MutationObserver(() => {
   injectAIButtonIntoDialog();
-  processIPHighlights();
+  chrome.storage.local.get({ enableIPHighlighting: true }, (items) => {
+    if (items.enableIPHighlighting) processIPHighlights();
+  });
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
 injectAIButtonIntoDialog();
-processIPHighlights();
 
-// Перевіряємо налаштування перед запуском тултіпів
-chrome.storage.local.get({ enableQueueTooltip: true }, (items) => {
+// Перевіряємо налаштування перед запуском
+chrome.storage.local.get({ enableQueueTooltip: true, enableIPHighlighting: true }, (items) => {
   if (items.enableQueueTooltip) {
     initQueueEnhancements();
+  }
+  if (items.enableIPHighlighting) {
+    processIPHighlights();
   }
 });
