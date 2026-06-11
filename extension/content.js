@@ -497,30 +497,39 @@ function fillJiraFields(data) {
       resolutionField.value = isConsultation ? '10310' : '10309';
     }
     resolutionField.dispatchEvent(new Event('change', { bubbles: true }));
-    console.log(`AI Helper: Resolution set to ${resolutionField.value}`);
   }
+
   const commentIframe = document.querySelector('iframe[id^="mce_"][id$="_ifr"]');
   const hiddenTextarea = document.querySelector(JIRA_CONFIG.selectors.dialogComment);
   
-  if (commentIframe?.contentDocument) {
+  const syncComment = (val) => {
+    if (!hiddenTextarea) return;
+    hiddenTextarea.value = val;
+    hiddenTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+    hiddenTextarea.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  if (commentIframe?.contentDocument && hiddenTextarea) {
     const editorBody = commentIframe.contentDocument.getElementById('tinymce');
     if (editorBody) {
       // Замінюємо переноси рядків на <br> для HTML редактора
       const htmlContent = (data.userComment || '').replace(/\n/g, '<br>');
       editorBody.innerHTML = `<p>${htmlContent}</p>`;
-      // Сповіщаємо редактор про зміну вмісту
-      editorBody.dispatchEvent(new Event('input', { bubbles: true }));
-      
-      if (hiddenTextarea) {
-        hiddenTextarea.value = data.userComment || '';
-        hiddenTextarea.dispatchEvent(new Event('input', { bubbles: true }));
-        hiddenTextarea.dispatchEvent(new Event('change', { bubbles: true }));
-      }
+      syncComment(data.userComment || '');
+
+      const onEditorChange = () => {
+        const plainText = editorBody.innerText.replace(/\u00a0/g, ' ').trim();
+        const isEmpty = plainText === "" || editorBody.innerHTML === "<p><br></p>" || editorBody.innerHTML === "<br>";
+        // Синхронізуємо: або порожньо, або актуальний текст із редактора
+        syncComment(isEmpty ? "" : editorBody.innerText);
+      };
+
+      editorBody.addEventListener('input', onEditorChange);
+      editorBody.addEventListener('keyup', onEditorChange);
+      editorBody.addEventListener('paste', onEditorChange);
     }
   } else if (hiddenTextarea) {
-    hiddenTextarea.value = data.userComment || '';
-    hiddenTextarea.dispatchEvent(new Event('input', { bubbles: true }));
-    hiddenTextarea.dispatchEvent(new Event('change', { bubbles: true }));
+    syncComment(data.userComment || '');
   }
 }
 
