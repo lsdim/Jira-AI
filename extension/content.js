@@ -406,8 +406,8 @@ async function processAIGeneration(ticketData, manualNotes, onProgress) {
   if (!apiKey) throw new Error('API Key не знайдено!');
 
   const userModels = [ 
-		'gemini-2.5-flash-lite', 
-        'gemini-2.5-flash', 
+		'gemini-2.5-flash', 
+        'gemini-2.5-flash-lite', 
         'gemini-flash-latest',
         'gemma-4-31b-it',
         'gemma-3-27b-it'
