@@ -431,6 +431,41 @@
   opacity: 1;
 }
 
+/* Стилі для підсвітки Штрихкодів (ШК) */
+.ai-barcode-highlight {
+  background: #fff0b3;
+  color: #855700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid #ffbdad;
+  transition: all 0.2s;
+  display: inline-block;
+  line-height: 1.2;
+}
+.ai-barcode-highlight:hover {
+  background: #ffe380;
+  border-color: #ff8b00;
+  color: #855700;
+}
+.ai-barcode-highlight.copied {
+  background: #e3fce1;
+  border-color: #36b37e;
+  color: #006644;
+}
+.ai-barcode-highlight::after {
+  content: "📦";
+  font-size: 10px;
+  margin-left: 4px;
+  opacity: 0.5;
+}
+.ai-barcode-highlight.copied::after {
+  content: "✔️";
+  opacity: 1;
+}
+
 @keyframes ai-pulse {
   0% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.5); opacity: 0.5; }
