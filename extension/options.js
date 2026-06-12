@@ -17,6 +17,7 @@ document.getElementById('save').onclick = () => {
     sheetsUrl: document.getElementById('sheetsUrl').value,
     enableQueueTooltip: document.getElementById('enableTooltip').checked,
     enableIPHighlighting: document.getElementById('enableIPHighlighting').checked,
+    enablePhoneHighlighting: document.getElementById('enablePhoneHighlighting').checked,
     // Нові налаштування оформлення
     enableGreeting: document.getElementById('enableGreeting').checked,
     greetingText: document.getElementById('greetingText').value,
@@ -40,7 +41,8 @@ function loadOptions() {
     userPrompt: '',
     sheetsUrl: '',
     enableQueueTooltip: true,
-    enableIPHighlighting: true, // За замовчуванням увімкнено
+    enableIPHighlighting: true,
+    enablePhoneHighlighting: true, // За замовчуванням увімкнено
     enableGreeting: true,
     greetingText: 'Добрий день',
     enableConsultNote: true,
@@ -53,6 +55,7 @@ function loadOptions() {
     document.getElementById('sheetsUrl').value = items.sheetsUrl;
     document.getElementById('enableTooltip').checked = items.enableQueueTooltip;
     document.getElementById('enableIPHighlighting').checked = items.enableIPHighlighting;
+    document.getElementById('enablePhoneHighlighting').checked = items.enablePhoneHighlighting;
     
     document.getElementById('enableGreeting').checked = items.enableGreeting;
     document.getElementById('greetingText').value = items.greetingText;

@@ -396,6 +396,41 @@
   opacity: 1;
 }
 
+/* Стилі для підсвітки Телефонів */
+.ai-phone-highlight {
+  background: #f4f5f7;
+  color: #403294;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #dfe1e6;
+  transition: all 0.2s;
+  display: inline-block;
+  line-height: 1.2;
+}
+.ai-phone-highlight:hover {
+  background: #eae6ff;
+  border-color: #6554c0;
+  color: #403294;
+}
+.ai-phone-highlight.copied {
+  background: #e3fce1;
+  border-color: #36b37e;
+  color: #006644;
+}
+.ai-phone-highlight::after {
+  content: "📞";
+  font-size: 10px;
+  margin-left: 4px;
+  opacity: 0.5;
+}
+.ai-phone-highlight.copied::after {
+  content: "✔️";
+  opacity: 1;
+}
+
 @keyframes ai-pulse {
   0% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.5); opacity: 0.5; }

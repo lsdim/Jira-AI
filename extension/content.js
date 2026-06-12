@@ -11,51 +11,82 @@ const JIRA_CONFIG = {
     dialogComment: '#comment', // Коментар
     // Селектор для ключів заявок у таблицях черг
     ticketKeyLink: 'a.issue-link[data-issue-key]',
-    // Поле з IP адресою
-    ipCustomField: '#customfield_10616-val'
+    // Поля з IP та телефонами
+    ipCustomField: '#customfield_10616-val',
+    phoneCustomField: '#customfield_10808-val',
+    adInfoBox: '#ad-info-content'
   }
 };
 
 const IP_REGEX = /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g;
+// Регулярка для телефонів (UA: 050..., 380..., +380..., 044...)
+const PHONE_REGEX = /(?:\+?38)?\b0[3-9]\d[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}\b/g;
 
-// Функція підсвітки IP
-function processIPHighlights() {
-  const selectors = [JIRA_CONFIG.selectors.description, JIRA_CONFIG.selectors.ipCustomField];
-  
-  selectors.forEach(sel => {
-    const el = document.querySelector(sel);
-    if (!el || el.querySelector('.ai-ip-highlight')) return;
+// Універсальна функція підсвітки
+function processHighlights() {
+  chrome.storage.local.get({ enableIPHighlighting: true, enablePhoneHighlighting: true }, (items) => {
+    if (!items.enableIPHighlighting && !items.enablePhoneHighlighting) return;
 
-    // Працюємо з текстовими вузлами, щоб не пошкодити існуючу розмітку
-    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
-    let node;
-    const nodesToReplace = [];
+    const selectors = [
+      JIRA_CONFIG.selectors.description, 
+      JIRA_CONFIG.selectors.ipCustomField, 
+      JIRA_CONFIG.selectors.phoneCustomField,
+      JIRA_CONFIG.selectors.adInfoBox
+    ];
+    
+    selectors.forEach(sel => {
+      const el = document.querySelector(sel);
+      if (!el || el.querySelector('.ai-ip-highlight, .ai-phone-highlight')) return;
 
-    while (node = walker.nextNode()) {
-      if (IP_REGEX.test(node.nodeValue)) {
-        nodesToReplace.push(node);
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+      let node;
+      const nodesToReplace = [];
+
+      while (node = walker.nextNode()) {
+        const text = node.nodeValue;
+        const hasIP = items.enableIPHighlighting && IP_REGEX.test(text);
+        const hasPhone = items.enablePhoneHighlighting && PHONE_REGEX.test(text);
+        
+        if (hasIP || hasPhone) {
+          nodesToReplace.push(node);
+        }
       }
-    }
 
-    nodesToReplace.forEach(textNode => {
-      const span = document.createElement('span');
-      span.innerHTML = textNode.nodeValue.replace(IP_REGEX, match => 
-        `<span class="ai-ip-highlight" title="Натисніть щоб копіювати">${match}</span>`
-      );
-      textNode.parentNode.replaceChild(span, textNode);
+      nodesToReplace.forEach(textNode => {
+        const span = document.createElement('span');
+        let newHtml = textNode.nodeValue;
+
+        if (items.enableIPHighlighting) {
+          newHtml = newHtml.replace(IP_REGEX, match => 
+            `<span class="ai-ip-highlight" title="Копіювати IP">${match}</span>`
+          );
+        }
+        
+        if (items.enablePhoneHighlighting) {
+          newHtml = newHtml.replace(PHONE_REGEX, match => 
+            `<span class="ai-phone-highlight" title="Копіювати телефон">${match}</span>`
+          );
+        }
+
+        span.innerHTML = newHtml;
+        textNode.parentNode.replaceChild(span, textNode);
+      });
     });
   });
 }
 
-// Глобальний обробник кліку для копіювання IP
+// Глобальний обробник кліку для копіювання
 document.addEventListener('click', async (e) => {
-  if (e.target.classList.contains('ai-ip-highlight')) {
-    const ip = e.target.innerText.trim();
+  const target = e.target;
+  const isIP = target.classList.contains('ai-ip-highlight');
+  const isPhone = target.classList.contains('ai-phone-highlight');
+
+  if (isIP || isPhone) {
+    const text = target.innerText.trim();
     try {
-      await navigator.clipboard.writeText(ip);
-      const btn = e.target;
-      btn.classList.add('copied');
-      setTimeout(() => btn.classList.remove('copied'), 2000);
+      await navigator.clipboard.writeText(text);
+      target.classList.add('copied');
+      setTimeout(() => target.classList.remove('copied'), 2000);
     } catch (err) {
       console.error('Помилка копіювання:', err);
     }
@@ -536,8 +567,8 @@ function fillJiraFields(data) {
 // --- Ініціалізація ---
 const observer = new MutationObserver(() => {
   injectAIButtonIntoDialog();
-  chrome.storage.local.get({ enableIPHighlighting: true }, (items) => {
-    if (items.enableIPHighlighting) processIPHighlights();
+  chrome.storage.local.get({ enableIPHighlighting: true, enablePhoneHighlighting: true }, (items) => {
+    if (items.enableIPHighlighting || items.enablePhoneHighlighting) processHighlights();
   });
 });
 
@@ -545,11 +576,15 @@ observer.observe(document.body, { childList: true, subtree: true });
 injectAIButtonIntoDialog();
 
 // Перевіряємо налаштування перед запуском
-chrome.storage.local.get({ enableQueueTooltip: true, enableIPHighlighting: true }, (items) => {
+chrome.storage.local.get({ 
+  enableQueueTooltip: true, 
+  enableIPHighlighting: true, 
+  enablePhoneHighlighting: true 
+}, (items) => {
   if (items.enableQueueTooltip) {
     initQueueEnhancements();
   }
-  if (items.enableIPHighlighting) {
-    processIPHighlights();
+  if (items.enableIPHighlighting || items.enablePhoneHighlighting) {
+    processHighlights();
   }
 });
