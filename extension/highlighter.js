@@ -9,7 +9,6 @@ function processHighlights() {
   chrome.storage.local.get({ enableIPHighlighting: true, enablePhoneHighlighting: true }, (items) => {
     if (!items.enableIPHighlighting && !items.enablePhoneHighlighting) return;
 
-    // Використовуємо JIRA_CONFIG з основного файлу (вони ділять один context)
     const selectors = [
       '#description-val', 
       '#customfield_10616-val', 
@@ -19,14 +18,21 @@ function processHighlights() {
     
     selectors.forEach(sel => {
       const el = document.querySelector(sel);
-      if (!el || el.querySelector('.ai-ip-highlight, .ai-phone-highlight')) return;
+      if (!el) return;
 
       const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
       let node;
       const nodesToReplace = [];
 
       while (node = walker.nextNode()) {
+        // ПРОПУСКАЄМО, якщо цей текст вже всередині нашого бейджа (захист від нескінченного циклу)
+        if (node.parentNode.closest('.ai-ip-highlight, .ai-phone-highlight')) continue;
+
         const text = node.nodeValue;
+        // Скидаємо lastIndex для надійної перевірки regex з прапором /g
+        IP_REGEX.lastIndex = 0;
+        PHONE_REGEX.lastIndex = 0;
+
         const hasIP = items.enableIPHighlighting && IP_REGEX.test(text);
         const hasPhone = items.enablePhoneHighlighting && PHONE_REGEX.test(text);
         
@@ -40,12 +46,14 @@ function processHighlights() {
         let newHtml = textNode.nodeValue;
 
         if (items.enableIPHighlighting) {
+          IP_REGEX.lastIndex = 0;
           newHtml = newHtml.replace(IP_REGEX, match => 
             `<span class="ai-ip-highlight" title="Копіювати IP">${match}</span>`
           );
         }
         
         if (items.enablePhoneHighlighting) {
+          PHONE_REGEX.lastIndex = 0;
           newHtml = newHtml.replace(PHONE_REGEX, match => 
             `<span class="ai-phone-highlight" title="Копіювати телефон">${match}</span>`
           );
