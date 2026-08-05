@@ -19,6 +19,7 @@ document.getElementById('save').onclick = () => {
     enableIPHighlighting: document.getElementById('enableIPHighlighting').checked,
     enablePhoneHighlighting: document.getElementById('enablePhoneHighlighting').checked,
     enableBarcodeHighlighting: document.getElementById('enableBarcodeHighlighting').checked,
+    enableExtraHighlighting: document.getElementById('enableExtraHighlighting').checked,
     // Нові налаштування оформлення
     enableGreeting: document.getElementById('enableGreeting').checked,
     greetingText: document.getElementById('greetingText').value,
@@ -44,7 +45,8 @@ function loadOptions() {
     enableQueueTooltip: true,
     enableIPHighlighting: true,
     enablePhoneHighlighting: true,
-    enableBarcodeHighlighting: true, // За замовчуванням увімкнено
+    enableBarcodeHighlighting: true,
+    enableExtraHighlighting: true, // За замовчуванням увімкнено
     enableGreeting: true,
     greetingText: 'Добрий день',
     enableConsultNote: true,
@@ -59,6 +61,7 @@ function loadOptions() {
     document.getElementById('enableIPHighlighting').checked = items.enableIPHighlighting;
     document.getElementById('enablePhoneHighlighting').checked = items.enablePhoneHighlighting;
     document.getElementById('enableBarcodeHighlighting').checked = items.enableBarcodeHighlighting;
+    document.getElementById('enableExtraHighlighting').checked = items.enableExtraHighlighting;
     
     document.getElementById('enableGreeting').checked = items.enableGreeting;
     document.getElementById('greetingText').value = items.greetingText;
