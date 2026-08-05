@@ -79,12 +79,13 @@ function processHighlights() {
       // Підсвітка жирного тексту та специфічних полів в ad-info-content
       if (enableExtraHighlighting && (type === 'all' || type === 'extra')) {
         // Жирний текст
-        el.querySelectorAll('b, strong').forEach(boldEl => {
+       /* el.querySelectorAll('b, strong').forEach(boldEl => {
           const text = boldEl.innerText.trim();
           if (text.length >= 4 && text.length <= 25 && !boldEl.querySelector('.ai-text-highlight')) {
             boldEl.innerHTML = `<span class="ai-text-highlight" title="Копіювати">${text}</span>`;
           }
         });
+		*/
 
         // Блок ad-info
         if (selector === '#ad-info-content') {
