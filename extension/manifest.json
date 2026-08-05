@@ -28,7 +28,7 @@
   "content_scripts": [
     {
       "matches": ["https://jira.ukrposhta.loc/browse/*", "https://jira.ukrposhta.loc/projects/*"],
-      "js": ["defaults.js", "sheets.js", "highlighter.js", "content.js"],
+      "js": ["defaults.js", "sheets.js", "highlighter.js", "attachments.js", "content.js"],
       "css": ["content.css"]
     }
   ],

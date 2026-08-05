@@ -506,13 +506,17 @@ chrome.storage.local.get({
   enableIPHighlighting: true, 
   enablePhoneHighlighting: true,
   enableBarcodeHighlighting: true,
-  enableExtraHighlighting: true
+  enableExtraHighlighting: true,
+  enableAttachmentFiltering: true
 }, (items) => {
   if (items.enableQueueTooltip) {
     initQueueEnhancements();
   }
   if (items.enableIPHighlighting || items.enablePhoneHighlighting || items.enableBarcodeHighlighting || items.enableExtraHighlighting) {
     processHighlights();
+  }
+  if (items.enableAttachmentFiltering) {
+    initAttachmentFilter();
   }
 });
 

@@ -20,6 +20,7 @@ document.getElementById('save').onclick = () => {
     enablePhoneHighlighting: document.getElementById('enablePhoneHighlighting').checked,
     enableBarcodeHighlighting: document.getElementById('enableBarcodeHighlighting').checked,
     enableExtraHighlighting: document.getElementById('enableExtraHighlighting').checked,
+    enableAttachmentFiltering: document.getElementById('enableAttachmentFiltering').checked,
     enableCalling: document.getElementById('enableCalling').checked,
     callPrefix: document.getElementById('callPrefix').value,
     // Нові налаштування оформлення
@@ -49,8 +50,9 @@ function loadOptions() {
     enablePhoneHighlighting: true,
     enableBarcodeHighlighting: true,
     enableExtraHighlighting: true,
-    enableCalling: false, // За замовчуванням вимкнено
-    callPrefix: 'callto:', // Стандартний префікс
+    enableAttachmentFiltering: true, // За замовчуванням увімкнено
+    enableCalling: false,
+    callPrefix: 'callto:',
     enableGreeting: true,
     greetingText: 'Добрий день',
     enableConsultNote: true,
@@ -66,6 +68,7 @@ function loadOptions() {
     document.getElementById('enablePhoneHighlighting').checked = items.enablePhoneHighlighting;
     document.getElementById('enableBarcodeHighlighting').checked = items.enableBarcodeHighlighting;
     document.getElementById('enableExtraHighlighting').checked = items.enableExtraHighlighting;
+    document.getElementById('enableAttachmentFiltering').checked = items.enableAttachmentFiltering;
     document.getElementById('enableCalling').checked = items.enableCalling;
     document.getElementById('callPrefix').value = items.callPrefix;
     

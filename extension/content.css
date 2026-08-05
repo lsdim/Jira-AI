@@ -554,6 +554,31 @@
 .jira-ai-tooltip.jira-ai-tooltip-dark .status-green { background: #36b37e; color: #deebff; }
 .jira-ai-tooltip.jira-ai-tooltip-dark .status-yellow { background: #ffab00; color: #172b4d; } /* Жовтий залишити контрастним */
 
+/* Стилі для панелі приховування вкладень */
+.ai-attachment-hider {
+  background: #f4f5f7;
+  border: 1px solid #dfe1e6;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 10px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #42526e;
+}
+.ai-attachment-hider-btn {
+  background: none;
+  border: none;
+  color: #0052cc;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px;
+}
+.ai-attachment-hider-btn:hover {
+  text-decoration: underline;
+}
+
 @keyframes ai-pulse {
   0% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.5); opacity: 0.5; }
