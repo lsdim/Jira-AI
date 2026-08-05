@@ -168,7 +168,7 @@ function renderTooltipContent(data, key) {
         return `
           <div class="ai-tooltip-ticket-item">
             <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:10px;" title="${issue.fields.summary}">
-              <a href="https://jira.ukrposhta.loc/browse/${issue.key}"><strong>${issue.key}</strong></a>: ${issue.fields.summary}
+              <a href="/browse/${issue.key}" target="_blank"><strong>${issue.key}</strong></a>: ${issue.fields.summary}
             </span>
             <span class="ai-tooltip-status ${colorClass}">${status}</span>
             <span style="font-size:9px; color:#6b778c; margin-left:10px;">${date}</span>
@@ -492,8 +492,8 @@ function fillJiraFields(data) {
 // --- Ініціалізація ---
 const observer = new MutationObserver(() => {
   injectAIButtonIntoDialog();
-  chrome.storage.local.get({ enableIPHighlighting: true, enablePhoneHighlighting: true }, (items) => {
-    if (items.enableIPHighlighting || items.enablePhoneHighlighting) processHighlights();
+  chrome.storage.local.get({ enableIPHighlighting: true, enablePhoneHighlighting: true, enableBarcodeHighlighting: true, enableExtraHighlighting: true }, (items) => {
+    if (items.enableIPHighlighting || items.enablePhoneHighlighting || items.enableBarcodeHighlighting || items.enableExtraHighlighting) processHighlights();
   });
 });
 
@@ -504,12 +504,95 @@ injectAIButtonIntoDialog();
 chrome.storage.local.get({ 
   enableQueueTooltip: true, 
   enableIPHighlighting: true, 
-  enablePhoneHighlighting: true 
+  enablePhoneHighlighting: true,
+  enableBarcodeHighlighting: true,
+  enableExtraHighlighting: true
 }, (items) => {
   if (items.enableQueueTooltip) {
     initQueueEnhancements();
   }
-  if (items.enableIPHighlighting || items.enablePhoneHighlighting) {
+  if (items.enableIPHighlighting || items.enablePhoneHighlighting || items.enableBarcodeHighlighting || items.enableExtraHighlighting) {
     processHighlights();
   }
 });
+
+// Функція для застосування темної теми до тултіпа
+function applyTheme(isDark) {
+  if (currentTooltip) {
+    if (isDark) {
+      currentTooltip.classList.add('jira-ai-tooltip-dark');
+    } else {
+      currentTooltip.classList.remove('jira-ai-tooltip-dark');
+    }
+  }
+}
+
+// MutationObserver для відстеження data-color-mode на <html>
+const htmlObserver = new MutationObserver((mutations) => {
+  mutations.forEach((mutation) => {
+    if (mutation.type === 'attributes' && mutation.attributeName === 'data-color-mode') {
+      const isDark = document.documentElement.getAttribute('data-color-mode') === 'dark';
+      applyTheme(isDark);
+    }
+  });
+});
+
+// Запускаємо observer на <html>
+htmlObserver.observe(document.documentElement, { attributes: true });
+
+// Оновлюємо showIssueTooltip, щоб застосовувати тему відразу
+async function showIssueTooltip(key, x, y) {
+  if (currentTooltip) currentTooltip.remove();
+
+  currentTooltip = document.createElement('div');
+  currentTooltip.className = 'jira-ai-tooltip';
+  currentTooltip.style.left = `${x + 15}px`;
+  currentTooltip.style.top = `${y + 15}px`;
+  
+  // Перевіряємо поточну тему і застосовуємо її
+  const isDark = document.documentElement.getAttribute('data-color-mode') === 'dark';
+  if (isDark) currentTooltip.classList.add('jira-ai-tooltip-dark');
+
+  // Якщо мишка зайшла в тултіп — скасовуємо таймер закриття
+  currentTooltip.onmouseenter = () => {
+    clearTimeout(tooltipHideTimeout);
+  };
+
+  // Коли мишка виходить з тултіпа — запускаємо таймер закриття
+  currentTooltip.onmouseleave = () => {
+    tooltipHideTimeout = setTimeout(hideTooltip, 200);
+  };
+
+  currentTooltip.innerHTML = `<div class="ai-tooltip-header">Завантаження ${key}...</div><div class="ai-tooltip-body"><div class="ai-pulse"></div></div>`;
+  document.body.appendChild(currentTooltip);
+
+  try {
+    let data;
+    if (tooltipCache.has(key)) {
+      data = tooltipCache.get(key);
+    } else {
+      const issueResp = await fetch(`/rest/api/2/issue/${key}?fields=description,reporter,summary`);
+      const issue = await issueResp.json();
+      
+      let description = issue.fields.description || 'Опис відсутній';
+	  description = cleanJiraMarkup(description);
+      const reporter = issue.fields.reporter;
+      const reporterKey = reporter.name;
+
+      let otherIssues = [];
+      if (reporterKey) {
+        const searchJql = `reporter = "${reporterKey}" AND key != ${key} ORDER BY created DESC`;
+        const searchResp = await fetch(`/rest/api/2/search?jql=${encodeURIComponent(searchJql)}&maxResults=10&fields=summary,status,created`);
+        const searchResult = await searchResp.json();
+        otherIssues = searchResult.issues || [];
+      }
+
+      data = { summary: issue.fields.summary, description, otherIssues, reporterName: reporter?.displayName || 'Анонім' };
+      tooltipCache.set(key, data);
+    }
+
+    renderTooltipContent(data, key);
+  } catch (err) {
+    currentTooltip.innerHTML = `<div class="ai-tooltip-body" style="color:red;">Помилка завантаження даних</div>`;
+  }
+}

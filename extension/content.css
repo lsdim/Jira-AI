@@ -517,6 +517,43 @@
   transform: scale(1.1);
 }
 
+/* СТИЛІ ДЛЯ ТЕМНОЇ ТЕМИ ТУЛТІПА */
+.jira-ai-tooltip.jira-ai-tooltip-dark {
+  background: #161a1d; /* Дуже темний фон, як у Jira */
+  border-color: #313131;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  color: #deebff; /* Світлий текст */
+}
+
+.jira-ai-tooltip.jira-ai-tooltip-dark .ai-tooltip-header {
+  background: #23272b; /* Трохи світліший заголовок */
+  border-bottom-color: #313131;
+  color: #deebff;
+}
+
+.jira-ai-tooltip.jira-ai-tooltip-dark .ai-tooltip-label {
+  color: #9fadbc; /* Менш контрастний лейбл */
+}
+
+.jira-ai-tooltip.jira-ai-tooltip-dark .ai-tooltip-description {
+  background: #23272b; /* Фон опису */
+  border-left-color: #61afef; /* Акцентний колір */
+  color: #deebff;
+}
+
+.jira-ai-tooltip.jira-ai-tooltip-dark .ai-tooltip-other-tickets {
+  border-top-color: #313131;
+}
+
+.jira-ai-tooltip.jira-ai-tooltip-dark .ai-tooltip-ticket-item {
+  border-bottom-color: #2b3034;
+}
+
+/* Адаптація статусів для темної теми */
+.jira-ai-tooltip.jira-ai-tooltip-dark .status-blue { background: #0747a6; color: #deebff; } /* Темніший фон, світлий текст */
+.jira-ai-tooltip.jira-ai-tooltip-dark .status-green { background: #36b37e; color: #deebff; }
+.jira-ai-tooltip.jira-ai-tooltip-dark .status-yellow { background: #ffab00; color: #172b4d; } /* Жовтий залишити контрастним */
+
 @keyframes ai-pulse {
   0% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.5); opacity: 0.5; }
