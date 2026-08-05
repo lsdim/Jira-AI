@@ -14,10 +14,12 @@ function processHighlights() {
     enableIPHighlighting: true,
     enablePhoneHighlighting: true,
     enableBarcodeHighlighting: true,
-    enableExtraHighlighting: true
+    enableExtraHighlighting: true,
+    enableCalling: false,
+    callPrefix: 'callto:'
   }, (items) => {
-    const { enableIPHighlighting, enablePhoneHighlighting, enableBarcodeHighlighting, enableExtraHighlighting } = items;
-    if (!enableIPHighlighting && !enablePhoneHighlighting && !enableBarcodeHighlighting && !enableExtraHighlighting) return;
+    const { enableIPHighlighting, enablePhoneHighlighting, enableBarcodeHighlighting, enableExtraHighlighting, enableCalling, callPrefix } = items;
+    if (!Object.values(items).some(val => val === true)) return;
 
     const selectors = [
       { selector: '#description-val', type: 'all' },
@@ -43,14 +45,12 @@ function processHighlights() {
       nodesToProcess.forEach(textNode => {
         let newHtml = textNode.nodeValue;
         
-        // Логіни
         if (enableExtraHighlighting && (type === 'all' || type === 'extra')) {
           newHtml = newHtml.replace(LOGIN_REGEX, (match, login) => 
             match.replace(login, `<span class="ai-text-highlight" title="Копіювати логін">${login}</span>`)
           );
         }
 
-        // IP, Телефони, ШК
         [
           { regex: IP_REGEX, enabled: enableIPHighlighting, className: 'ai-ip-highlight', title: 'Копіювати IP', itemType: 'ip' },
           { regex: PHONE_REGEX, enabled: enablePhoneHighlighting, className: 'ai-phone-highlight', title: 'Копіювати телефон', itemType: 'phone' },
@@ -59,14 +59,21 @@ function processHighlights() {
           if (enabled && (type === 'all' || type === itemType)) {
             regex.lastIndex = 0;
             if (regex.test(newHtml)) {
-              newHtml = newHtml.replace(regex, match => `<span class="${className}" title="${title}">${match}</span>`);
+              newHtml = newHtml.replace(regex, match => {
+                const callBtn = (itemType === 'phone' && enableCalling)
+                  ? `<a href="${callPrefix}${match.replace(/\s|-/g, '')}" class="ai-call-btn" title="Подзвонити">📞</a>`
+                  : '';
+                return `<span class="${className}" title="${title}">${match}</span>${callBtn}`;
+              });
             }
           }
         });
         
-        const span = document.createElement('span');
-        span.innerHTML = newHtml;
-        textNode.parentNode.replaceChild(span, textNode);
+        if (newHtml !== textNode.nodeValue) {
+            const span = document.createElement('span');
+            span.innerHTML = newHtml;
+            textNode.parentNode.replaceChild(span, textNode);
+        }
       });
 
       // Підсвітка жирного тексту та специфічних полів в ad-info-content
@@ -103,6 +110,12 @@ function processHighlights() {
 // Глобальний обробник кліку для копіювання
 document.addEventListener('click', async (e) => {
   const target = e.target;
+  // Запобігаємо спливанню, якщо це кнопка дзвінка
+  if (target.classList.contains('ai-call-btn')) {
+    e.stopPropagation();
+    return;
+  }
+  
   const isHighlight = target.matches('.ai-ip-highlight, .ai-phone-highlight, .ai-barcode-highlight, .ai-text-highlight');
 
   if (isHighlight) {

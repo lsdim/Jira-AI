@@ -20,6 +20,8 @@ document.getElementById('save').onclick = () => {
     enablePhoneHighlighting: document.getElementById('enablePhoneHighlighting').checked,
     enableBarcodeHighlighting: document.getElementById('enableBarcodeHighlighting').checked,
     enableExtraHighlighting: document.getElementById('enableExtraHighlighting').checked,
+    enableCalling: document.getElementById('enableCalling').checked,
+    callPrefix: document.getElementById('callPrefix').value,
     // Нові налаштування оформлення
     enableGreeting: document.getElementById('enableGreeting').checked,
     greetingText: document.getElementById('greetingText').value,
@@ -46,7 +48,9 @@ function loadOptions() {
     enableIPHighlighting: true,
     enablePhoneHighlighting: true,
     enableBarcodeHighlighting: true,
-    enableExtraHighlighting: true, // За замовчуванням увімкнено
+    enableExtraHighlighting: true,
+    enableCalling: false, // За замовчуванням вимкнено
+    callPrefix: 'callto:', // Стандартний префікс
     enableGreeting: true,
     greetingText: 'Добрий день',
     enableConsultNote: true,
@@ -62,6 +66,8 @@ function loadOptions() {
     document.getElementById('enablePhoneHighlighting').checked = items.enablePhoneHighlighting;
     document.getElementById('enableBarcodeHighlighting').checked = items.enableBarcodeHighlighting;
     document.getElementById('enableExtraHighlighting').checked = items.enableExtraHighlighting;
+    document.getElementById('enableCalling').checked = items.enableCalling;
+    document.getElementById('callPrefix').value = items.callPrefix;
     
     document.getElementById('enableGreeting').checked = items.enableGreeting;
     document.getElementById('greetingText').value = items.greetingText;
