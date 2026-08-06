@@ -38,7 +38,7 @@ function processHighlights() {
       // Спеціальна обробка для поля логіна, якщо весь вміст — це логін
       if (enableExtraHighlighting && (selector === '#customfield_10630-val' || selector === '#customfield_10618-val') && !el.querySelector('.ai-text-highlight')) {
           const text = el.innerText.trim();
-          if (text) el.innerHTML = `<span class="ai-text-highlight" title="Копіювати логін">${text}</span>`;
+          if (text) el.innerHTML = `<span class="ai-text-highlight" title="Копіювати">${text}</span>`;
           return; // Вже обробили, більше нічого не треба
       }
 
