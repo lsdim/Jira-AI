@@ -26,7 +26,8 @@ function processHighlights() {
       { selector: '#customfield_10616-val', type: 'ip' },
       { selector: '#customfield_10808-val', type: 'phone' },
       { selector: '#customfield_10833-val', type: 'barcode' },
-      { selector: '#customfield_10630-val', type: 'extra' }, // Нове поле
+      { selector: '#customfield_10630-val', type: 'extra' },
+      { selector: '#customfield_10618-val', type: 'extra' },
       { selector: '#ad-info-content', type: 'all' }
     ];
 
@@ -35,7 +36,7 @@ function processHighlights() {
       if (!el) return;
 
       // Спеціальна обробка для поля логіна, якщо весь вміст — це логін
-      if (enableExtraHighlighting && selector === '#customfield_10630-val' && !el.querySelector('.ai-text-highlight')) {
+      if (enableExtraHighlighting && (selector === '#customfield_10630-val' || selector === '#customfield_10618-val') && !el.querySelector('.ai-text-highlight')) {
           const text = el.innerText.trim();
           if (text) el.innerHTML = `<span class="ai-text-highlight" title="Копіювати логін">${text}</span>`;
           return; // Вже обробили, більше нічого не треба
