@@ -588,10 +588,10 @@
 
 /* --- Секція відстеження SLA та сповіщень --- */
 
-/* Контейнер виринаючих повідомлень (Toasts) */
+/* Контейнер виринаючих повідомлень (Toasts) - справа зверху */
 #jira-ai-sla-container {
   position: fixed;
-  bottom: 24px;
+  top: 70px; /* Нижче шапки Jira */
   right: 24px;
   z-index: 10000;
   display: flex;
@@ -627,7 +627,7 @@
 @keyframes sla-slide-in {
   from {
     opacity: 0;
-    transform: translateY(30px) scale(0.95);
+    transform: translateY(-20px) scale(0.95);
   }
   to {
     opacity: 1;
@@ -732,10 +732,16 @@ tr.jira-ai-sla-row-warning {
   background-color: #fff9e6 !important;
   border-left: 4px solid #ffab00 !important;
 }
+tr.jira-ai-sla-row-warning > td {
+  background-color: #fff9e6 !important;
+}
 
 tr.jira-ai-sla-row-critical {
   background-color: #fff0ed !important;
   border-left: 4px solid #de350b !important;
+}
+tr.jira-ai-sla-row-critical > td {
+  background-color: #fff0ed !important;
 }
 
 /* Інлайн-бейдж біля ключа в списку */

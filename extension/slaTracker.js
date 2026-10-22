@@ -4,14 +4,16 @@
 (function () {
   'use strict';
 
+  console.log('[Jira AI Helper] slaTracker.js завантажено на сторінці:', window.location.href);
+
   const SLA_CONFIG = {
     // Кастомне поле SLA за замовчуванням
     slaFieldId: 'customfield_10641',
     // Селектор контейнера для спливаючих сповіщень
     containerId: 'jira-ai-sla-container',
-    // Селектори елементів Jira для підсвітки
-    tableRowSelector: '#issuetable tr, table.aui tr[data-issuekey], .ghx-issue, tr.issuerow',
-    issueHeaderSelector: '#jira-issue-header, #header-issue'
+    // Селектори рядків таблиць Jira
+    tableRowSelector: 'tr[data-issue-key], tr[data-issuekey], #issuetable tr, table.aui tr[data-issuekey], tr.issuerow, tr[data-testid^="issue-table--row-"], .ghx-issue',
+    issueHeaderSelector: '#jira-issue-header, #header-issue, .issue-header'
   };
 
   let pollingTimer = null;
@@ -21,9 +23,11 @@
     slaThresholdMinutes: 30,
     slaSnoozeDuration: 10,
     enableSlaHighlighting: true,
-    snoozedTickets: {}, // { issueKey: timestampUntil }
-    dismissedTickets: {} // { issueKey: timestampDismissed }
+    snoozedTickets: {} // { issueKey: timestampUntil }
   };
+
+  // Поточні закриті картки для поточної відкритої сторінки (сесійні, не блокують сповіщення назавжди)
+  const sessionClosedTickets = new Set();
 
   // Форматування хвилин у зручний рядок
   function formatMinutes(minutes) {
@@ -44,38 +48,43 @@
         slaThresholdMinutes: 30,
         slaSnoozeDuration: 10,
         enableSlaHighlighting: true,
-        snoozedTickets: {},
-        dismissedTickets: {}
+        snoozedTickets: {}
       }, (items) => {
         cachedSettings = items;
+        console.log('[Jira AI Helper] Поточні налаштування SLA:', cachedSettings);
         resolve(items);
       });
     });
   }
 
-  // Отримання даних про заявки через Jira REST API
+  // Отримання ВИКЛЮЧНО моїх незакритих заявок через Jira REST API
   async function fetchAssignedIssues() {
     try {
-      // Шукаємо незакриті заявки призначені на поточного користувача
       const jql = 'assignee = currentUser() AND resolution is EMPTY ORDER BY updated DESC';
-      const url = `/rest/api/2/search?jql=${encodeURIComponent(jql)}&maxResults=50&fields=summary,status,priority,${SLA_CONFIG.slaFieldId}`;
+      const url = `/rest/api/2/search?jql=${encodeURIComponent(jql)}&maxResults=50&fields=summary,status,priority,assignee,${SLA_CONFIG.slaFieldId}`;
+      console.log('[Jira AI Helper] Отримання МОЇХ заявок:', jql);
       
       const response = await fetch(url);
-      if (!response.ok) {
-        return [];
+      if (response.ok) {
+        const data = await response.json();
+        const myIssues = data.issues || [];
+        console.log(`[Jira AI Helper] Отримано ${myIssues.length} моїх заявок:`, myIssues.map(i => i.key));
+        return myIssues;
+      } else {
+        console.warn('[Jira AI Helper] Помилка API:', response.status);
       }
-      const data = await response.json();
-      return data.issues || [];
     } catch (e) {
-      console.warn('Jira AI Helper: Помилка отримання заявок для SLA:', e);
-      return [];
+      console.warn('[Jira AI Helper] Помилка запиту через JQL:', e);
     }
+    return [];
   }
 
   // Перевірка та обробка заявок
   async function checkSla() {
+    console.log('[Jira AI Helper] === Запуск перевірки SLA ===');
     await loadSettings();
     if (!cachedSettings.enableSlaTracking) {
+      console.log('[Jira AI Helper] Відстеження SLA вимкнено.');
       removeNotifications();
       clearHighlighting();
       return;
@@ -83,61 +92,82 @@
 
     const issues = await fetchAssignedIssues();
     const now = Date.now();
-    const thresholdMs = (Number(cachedSettings.slaThresholdMinutes) || 30) * 60 * 1000;
+    const thresholdMinutes = Number(cachedSettings.slaThresholdMinutes) || 30;
+    const thresholdMs = thresholdMinutes * 60 * 1000;
+
     const criticalList = [];
 
     issues.forEach(issue => {
       const statusName = (issue.fields?.status?.name || '').toLowerCase();
-      // Перевіряємо статуси: "В роботі", "Призначена", "Відкрита", "Очікує виконання"
-      // Не враховуємо закриті/вирішені (вже відфільтровано resolution is EMPTY)
-      const allowedStatuses = ['в роботі', 'призначена', 'відкрита', 'очікує виконання', 'in progress', 'assigned', 'open'];
-      const isAllowedStatus = allowedStatuses.some(st => statusName.includes(st));
-      if (!isAllowedStatus) return;
+      
+      // Ігноруємо закриті/вирішені
+      if (statusName.includes('закрит') || statusName.includes('вирішен') || statusName.includes('closed') || statusName.includes('resolved')) {
+        return;
+      }
 
       const slaField = issue.fields?.[SLA_CONFIG.slaFieldId];
-      if (!slaField || !slaField.ongoingCycle) return;
+      if (!slaField) return;
 
-      const ongoing = slaField.ongoingCycle;
-      // Якщо відлік призупинено - не турбуємо
-      if (ongoing.paused === true) return;
+      let ongoing = slaField.ongoingCycle || slaField.goalView;
+      if (!ongoing) return;
 
-      // Визначаємо час до порушення
+      // Якщо відлік призупинено (наприклад, очікує користувача)
+      if (ongoing.paused === true) {
+        console.log(`[Jira AI Helper] ${issue.key}: SLA на паузі.`);
+        return;
+      }
+
+      // Розрахунок залишку часу
       let remainingMs = 0;
       if (ongoing.breachTime && ongoing.breachTime.epochMillis) {
         remainingMs = ongoing.breachTime.epochMillis - now;
       } else if (ongoing.remainingTime && typeof ongoing.remainingTime.millis === 'number') {
         remainingMs = ongoing.remainingTime.millis;
+      } else if (typeof ongoing.remainingTime === 'string') {
+        const timeStr = ongoing.remainingTime;
+        if (timeStr.includes(':')) {
+          const parts = timeStr.split(':').map(Number);
+          remainingMs = (parts[0] * 60 + parts[1]) * 60 * 1000;
+        } else {
+          const hMatch = timeStr.match(/(\d+)\s*h/);
+          const mMatch = timeStr.match(/(\d+)\s*m/);
+          const h = hMatch ? parseInt(hMatch[1], 10) : 0;
+          const m = mMatch ? parseInt(mMatch[1], 10) : 0;
+          remainingMs = (h * 60 + m) * 60 * 1000;
+        }
       }
 
-      // Якщо час вичерпано або залишок менший за поріг
-      const isBreached = ongoing.breached || remainingMs <= 0;
+      const remainingMinutes = Math.round(remainingMs / 60000);
+      const isBreached = ongoing.breached || ongoing.failed || remainingMs <= 0;
       const isUrgent = remainingMs <= thresholdMs;
 
+      console.log(`[Jira AI Helper] Моя заявка ${issue.key}: залишок SLA ${remainingMinutes} хв (поріг ${thresholdMinutes} хв).`);
+
       if (isBreached || isUrgent) {
-        const remainingMinutes = Math.max(0, Math.round(remainingMs / 60000));
+        const remMin = Math.max(0, remainingMinutes);
         criticalList.push({
           key: issue.key,
           summary: issue.fields.summary || '',
           status: issue.fields.status?.name || '',
           priority: issue.fields.priority?.name || '',
           priorityIcon: issue.fields.priority?.iconUrl || '',
-          remainingMinutes,
+          remainingMinutes: remMin,
           isBreached,
-          friendly: isBreached ? 'Прострочено' : (ongoing.remainingTime?.friendly || formatMinutes(remainingMinutes))
+          friendly: isBreached ? 'Прострочено' : (ongoing.remainingTimeHumanReadable || ongoing.remainingTime?.friendly || formatMinutes(remMin))
         });
       }
     });
 
     activeIssues = criticalList;
 
-    // Оновлюємо підсвітку в DOM
+    // 1. Оновлюємо підсвітку в DOM ТІЛЬКИ для моїх критичних заявок
     if (cachedSettings.enableSlaHighlighting) {
       highlightIssuesInDom(criticalList);
     } else {
       clearHighlighting();
     }
 
-    // Відображаємо сповіщення
+    // 2. Відображаємо сповіщення
     renderNotifications(criticalList);
   }
 
@@ -153,8 +183,10 @@
 
   // Підсвітка заявок у чергах, таблицях та на сторінці заявки
   function highlightIssuesInDom(criticalList) {
+    // Спочатку обов'язково очищуємо стару підсвітку
+    clearHighlighting();
+
     if (!criticalList || criticalList.length === 0) {
-      clearHighlighting();
       return;
     }
 
@@ -162,8 +194,15 @@
 
     // 1. Підсвітка у таблицях черг та пошуку
     const rows = document.querySelectorAll(SLA_CONFIG.tableRowSelector);
+    let highlightedCount = 0;
+
     rows.forEach(row => {
-      let issueKey = row.getAttribute('data-issuekey') || row.getAttribute('data-issue-key');
+      let issueKey = row.getAttribute('data-issue-key') || row.getAttribute('data-issuekey');
+      if (!issueKey) {
+        const testId = row.getAttribute('data-testid') || '';
+        const m = testId.match(/issue-table--row-([A-Z0-9]+-\d+)/i);
+        if (m) issueKey = m[1];
+      }
       if (!issueKey) {
         const keyLink = row.querySelector('a.issue-link[data-issue-key], a.issue-link, td.nav.issuekey a');
         if (keyLink) {
@@ -171,23 +210,31 @@
         }
       }
 
+      // ТІЛЬКИ якщо цей ключ є серед моїх критичних заявок
       if (issueKey && criticalMap.has(issueKey)) {
+        highlightedCount++;
         const item = criticalMap.get(issueKey);
         const className = item.isBreached || item.remainingMinutes <= 10 ? 'jira-ai-sla-row-critical' : 'jira-ai-sla-row-warning';
-        row.classList.remove('jira-ai-sla-row-warning', 'jira-ai-sla-row-critical');
-        row.classList.add(className);
+        if (!row.classList.contains(className)) {
+          row.classList.add(className);
+        }
 
-        // Додаємо бейдж поруч із номером заявки, якщо його ще немає
-        const keyCell = row.querySelector('.issuekey, [rel="issue-key"], a.issue-link') || row;
-        if (keyCell && !keyCell.querySelector('.jira-ai-sla-inline-badge')) {
+        // Додаємо бейдж поруч із номером заявки
+        /*const keyContainer = row.querySelector(`[data-cell-name="${issueKey}_issuekey"], a.issue-link[data-issue-key="${issueKey}"]`) || row.querySelector('a.issue-link');
+        if (keyContainer && !row.querySelector('.jira-ai-sla-inline-badge')) {
           const badge = document.createElement('span');
           badge.className = `jira-ai-sla-inline-badge ${className}`;
           badge.title = `SLA: ${item.friendly}`;
           badge.textContent = `⏱️ ${item.friendly}`;
-          keyCell.appendChild(badge);
-        }
+          //badge.textContent = `⏱️`;
+          keyContainer.parentNode.insertBefore(badge, keyContainer.nextSibling);
+        }*/
       }
     });
+
+    if (highlightedCount > 0) {
+      console.log(`[Jira AI Helper] Підсвічено рядків у черзі (тільки мої заявки): ${highlightedCount}`);
+    }
 
     // 2. Підсвітка банером на самій сторінці заявки (/browse/SD-...)
     const currentPath = window.location.pathname;
@@ -253,20 +300,22 @@
     const container = getOrCreateContainer();
     const now = Date.now();
     const snoozed = cachedSettings.snoozedTickets || {};
-    const dismissed = cachedSettings.dismissedTickets || {};
 
-    // Фільтруємо ті, які відкладені або приховані
+    // Фільтруємо ті, які відкладені користувачем на певний час,
+    // або які користувач закрив хрестиком на цій сторінці (поки не оновить сторінку)
     const visibleIssues = criticalList.filter(item => {
-      // Якщо відкладено і час відкладення ще не минув
+      // 1. Якщо відкладено на X хвилин
       if (snoozed[item.key] && snoozed[item.key] > now) {
         return false;
       }
-      // Якщо приховано для поточної зміни (приховано менше ніж 4 години тому)
-      if (dismissed[item.key] && (now - dismissed[item.key] < 4 * 60 * 60 * 1000)) {
+      // 2. Якщо користувач просто закрив хрестиком на цій сторінці
+      if (sessionClosedTickets.has(item.key)) {
         return false;
       }
       return true;
     });
+
+    console.log(`[Jira AI Helper] Активних карток сповіщень: ${visibleIssues.length}`);
 
     if (visibleIssues.length === 0) {
       container.innerHTML = '';
@@ -288,20 +337,20 @@
             <a href="/browse/${item.key}" class="jira-ai-sla-link" target="_blank"><strong>${item.key}</strong></a>
             <span class="jira-ai-sla-time-badge ${isCrit ? 'critical' : 'warning'}">${item.friendly}</span>
           </div>
-          <button class="jira-ai-sla-close-btn" title="Приховати">×</button>
+          <button class="jira-ai-sla-close-btn" title="Закрити (до наступного переходу або оновлення сторінки)">×</button>
         </div>
         <div class="jira-ai-sla-card-body" title="${item.summary}">
           ${item.summary}
         </div>
         <div class="jira-ai-sla-card-actions">
           <a href="/browse/${item.key}" class="aui-button aui-button-compact aui-button-primary jira-ai-sla-open-btn">Перейти</a>
-          <button class="aui-button aui-button-compact jira-ai-sla-snooze-btn" title="Відкласти на ${cachedSettings.slaSnoozeDuration || 10} хв">
+          <button class="aui-button aui-button-compact jira-ai-sla-snooze-btn" title="Не показувати на всіх вкладках ${cachedSettings.slaSnoozeDuration || 10} хв">
             ⏰ Відкласти (${cachedSettings.slaSnoozeDuration || 10} хв)
           </button>
         </div>
       `;
 
-      // Подія "Відкласти" (Snooze)
+      // 1. Подія "Відкласти" (Snooze): зберігається глобально у chrome.storage.local
       const snoozeBtn = card.querySelector('.jira-ai-sla-snooze-btn');
       snoozeBtn.onclick = async (e) => {
         e.preventDefault();
@@ -309,17 +358,17 @@
         cachedSettings.snoozedTickets = cachedSettings.snoozedTickets || {};
         cachedSettings.snoozedTickets[item.key] = Date.now() + snoozeDurationMs;
         await chrome.storage.local.set({ snoozedTickets: cachedSettings.snoozedTickets });
+        console.log(`[Jira AI Helper] Відкладено ${item.key} на ${cachedSettings.slaSnoozeDuration || 10} хв.`);
         card.classList.add('fade-out');
         setTimeout(() => card.remove(), 250);
       };
 
-      // Подія "Приховати" (Dismiss)
+      // 2. Подія "Закрити" (хрестик): закриває тільки на поточній сторінці (сесійно)
       const closeBtn = card.querySelector('.jira-ai-sla-close-btn');
-      closeBtn.onclick = async (e) => {
+      closeBtn.onclick = (e) => {
         e.preventDefault();
-        cachedSettings.dismissedTickets = cachedSettings.dismissedTickets || {};
-        cachedSettings.dismissedTickets[item.key] = Date.now();
-        await chrome.storage.local.set({ dismissedTickets: cachedSettings.dismissedTickets });
+        sessionClosedTickets.add(item.key);
+        console.log(`[Jira AI Helper] ${item.key} закрили хрестиком на цій сторінці.`);
         card.classList.add('fade-out');
         setTimeout(() => card.remove(), 250);
       };
@@ -330,9 +379,11 @@
 
   // Ініціалізація періодичного опитування
   function initSlaTracker() {
+    console.log('[Jira AI Helper] Ініціалізація SLA трекера...');
     loadSettings().then(() => {
+      // Перша перевірка відразу при завантаженні сторінки
       checkSla();
-      // Перевіряємо кожні 60 секунд
+      // Повторюємо кожні 60 секунд
       if (pollingTimer) clearInterval(pollingTimer);
       pollingTimer = setInterval(checkSla, 60 * 1000);
     });
@@ -341,7 +392,7 @@
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local') {
         let needRefresh = false;
-        ['enableSlaTracking', 'slaThresholdMinutes', 'slaSnoozeDuration', 'enableSlaHighlighting', 'snoozedTickets', 'dismissedTickets'].forEach(key => {
+        ['enableSlaTracking', 'slaThresholdMinutes', 'slaSnoozeDuration', 'enableSlaHighlighting', 'snoozedTickets'].forEach(key => {
           if (changes[key]) {
             cachedSettings[key] = changes[key].newValue;
             needRefresh = true;
@@ -353,14 +404,26 @@
       }
     });
 
-    // Спостерігач за DOM (якщо в Jira динамічно оновлюється черга без перезавантаження сторінки)
-    const domObserver = new MutationObserver(() => {
-      if (activeIssues.length > 0 && cachedSettings.enableSlaHighlighting) {
-        highlightIssuesInDom(activeIssues);
+    // Спостерігач за появою таблиць у DOM (тільки додавання/видалення вузлів списку)
+    let domDebounce = null;
+    const domObserver = new MutationObserver((mutations) => {
+      // Реагуємо тільки якщо додались нові елементи таблиці/черги
+      const hasTableMutations = mutations.some(m => {
+        return Array.from(m.addedNodes).some(n => {
+          if (n.nodeType !== 1) return false;
+          return n.matches?.('tr, tbody, table') || n.querySelector?.('tr[data-issue-key], tr[data-testid^="issue-table--row-"]');
+        });
+      });
+
+      if (hasTableMutations && activeIssues.length > 0 && cachedSettings.enableSlaHighlighting) {
+        clearTimeout(domDebounce);
+        domDebounce = setTimeout(() => {
+          highlightIssuesInDom(activeIssues);
+        }, 500);
       }
     });
 
-    const targetNode = document.getElementById('content') || document.body;
+    const targetNode = document.querySelector('#content, #main, .issue-table, tbody') || document.body;
     if (targetNode) {
       domObserver.observe(targetNode, { childList: true, subtree: true });
     }
