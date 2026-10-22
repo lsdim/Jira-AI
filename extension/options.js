@@ -29,7 +29,12 @@ document.getElementById('save').onclick = () => {
     enableConsultNote: document.getElementById('enableConsultNote').checked,
     consultNoteText: document.getElementById('consultNoteText').value,
     enableSignature: document.getElementById('enableSignature').checked,
-    signatureText: document.getElementById('signatureText').value
+    signatureText: document.getElementById('signatureText').value,
+    // Налаштування відстеження SLA
+    enableSlaTracking: document.getElementById('enableSlaTracking').checked,
+    slaThresholdMinutes: Number(document.getElementById('slaThresholdMinutes').value) || 30,
+    slaSnoozeDuration: Number(document.getElementById('slaSnoozeDuration').value) || 10,
+    enableSlaHighlighting: document.getElementById('enableSlaHighlighting').checked
   };
 
   chrome.storage.local.set(settings, () => {
@@ -58,7 +63,12 @@ function loadOptions() {
     enableConsultNote: true,
     consultNoteText: 'Дане звернення буде закрито. Центр звернень користувачів приймає та обробляє заявки які стосуються виключно ІТ питань та проблем що виникли на робочому пристрої співробітників, надіслані через корпоративні методи зв\'язку',
     enableSignature: true,
-    signatureText: 'З повагою, ІТ підтримка АТ "Укрпошта"'
+    signatureText: 'З повагою, ІТ підтримка АТ "Укрпошта"',
+    // Значення за замовчуванням для SLA
+    enableSlaTracking: true,
+    slaThresholdMinutes: 30,
+    slaSnoozeDuration: 10,
+    enableSlaHighlighting: true
   }, (items) => {
     document.getElementById('apiKey').value = items.geminiApiKey;
     document.getElementById('prompt').value = items.userPrompt || window.DEFAULT_PROMPT || '';
@@ -78,6 +88,12 @@ function loadOptions() {
     document.getElementById('consultNoteText').value = items.consultNoteText;
     document.getElementById('enableSignature').checked = items.enableSignature;
     document.getElementById('signatureText').value = items.signatureText;
+
+    // SLA поля
+    document.getElementById('enableSlaTracking').checked = items.enableSlaTracking;
+    document.getElementById('slaThresholdMinutes').value = items.slaThresholdMinutes || 30;
+    document.getElementById('slaSnoozeDuration').value = items.slaSnoozeDuration || 10;
+    document.getElementById('enableSlaHighlighting').checked = items.enableSlaHighlighting !== false;
   });
 }
 

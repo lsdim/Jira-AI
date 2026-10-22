@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Jira AI Helper",
-  "version": "1.6",
+  "version": "1.7",
   "description": "Автоматизація закриття заявок Jira за допомогою Gemini AI",
   "permissions": ["storage", "alarms"],
   "host_permissions": [
@@ -27,8 +27,13 @@
   "options_page": "options.html",
   "content_scripts": [
     {
-      "matches": ["https://jira.ukrposhta.loc/browse/*", "https://jira.ukrposhta.loc/projects/*"],
-      "js": ["defaults.js", "sheets.js", "highlighter.js", "attachments.js", "content.js"],
+      "matches": [
+        "https://jira.ukrposhta.loc/browse/*",
+        "https://jira.ukrposhta.loc/projects/*",
+        "https://jira.ukrposhta.loc/secure/*",
+        "https://jira.ukrposhta.loc/issues/*"
+      ],
+      "js": ["defaults.js", "sheets.js", "highlighter.js", "attachments.js", "slaTracker.js", "content.js"],
       "css": ["content.css"]
     }
   ],

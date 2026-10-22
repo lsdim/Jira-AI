@@ -56,7 +56,7 @@
     .field-group { margin-bottom: 15px; }
     label { display: block; font-weight: 600; font-size: 12px; margin-bottom: 6px; color: #5e6c84; }
     
-    input[type="text"],input[type="password"], textarea {
+    input[type="text"], input[type="password"], input[type="number"], select, textarea {
       width: 100%;
       padding: 8px;
       border: 2px solid #dfe1e6;
@@ -65,7 +65,7 @@
       font-size: 13px;
     }
     textarea { height: 120px; resize: vertical; font-family: inherit; }
-    input:focus, textarea:focus { border-color: #4c9aff; outline: none; }
+    input:focus, select:focus, textarea:focus { border-color: #4c9aff; outline: none; }
 
     /* Switch Style */
     .switch-wrapper {
@@ -130,6 +130,7 @@
     <div class="tabs">
       <button class="tab-btn active" data-tab="ai">Штучний інтелект</button>
       <button class="tab-btn" data-tab="sheets">Таблиці</button>
+      <button class="tab-btn" data-tab="sla">⏱️ SLA</button>
       <button class="tab-btn" data-tab="general">Загальні</button>
     </div>
 
@@ -191,8 +192,52 @@
           <input type="text" id="signatureText" placeholder="З повагою, ІТ підтримка АТ Укрпошта" style="font-size: 12px;">
         </div>
       </div>
+    </div>
 
-      
+    <!-- SLA Tab -->
+    <div id="sla" class="tab-content">
+      <div class="switch-wrapper">
+        <label style="margin-bottom: 0;">Відстеження заявок з SLA</label>
+        <label class="switch">
+          <input type="checkbox" id="enableSlaTracking">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <p style="font-size: 11px; color: #6b778c; margin-top: -4px;">
+        Відстежує незакриті заявки в роботі, призначені на вас, та попереджає про наближення дедлайну.
+      </p>
+
+      <div class="field-group" style="border-top: 1px solid #ebecf0; padding-top: 15px; margin-top: 10px;">
+        <label for="slaThresholdMinutes">Попереджати, коли до кінця SLA залишилось:</label>
+        <select id="slaThresholdMinutes">
+          <option value="15">15 хвилин</option>
+          <option value="30">30 хвилин (рекомендовано)</option>
+          <option value="45">45 хвилин</option>
+          <option value="60">1 година</option>
+          <option value="120">2 години</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label for="slaSnoozeDuration">Час відкладання сповіщення (Snooze):</label>
+        <select id="slaSnoozeDuration">
+          <option value="5">5 хвилин</option>
+          <option value="10">10 хвилин (за замовчуванням)</option>
+          <option value="15">15 хвилин</option>
+          <option value="30">30 хвилин</option>
+        </select>
+      </div>
+
+      <div class="switch-wrapper" style="border-top: 1px solid #ebecf0; padding-top: 15px; margin-top: 10px;">
+        <label style="margin-bottom: 0;">Візуальна підсвітка заявок у списках та на сторінці</label>
+        <label class="switch">
+          <input type="checkbox" id="enableSlaHighlighting">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <p style="font-size: 11px; color: #6b778c; margin-top: -4px;">
+        Підсвічує рядки в таблицях черг та відображає банер угорі відкритої заявки.
+      </p>
     </div>
 
     <!-- General Tab -->
