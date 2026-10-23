@@ -23,6 +23,7 @@
     slaThresholdMinutes: 30,
     slaSnoozeDuration: 10,
     enableSlaHighlighting: true,
+    enableSlaNotifications: true,
     snoozedTickets: {} // { issueKey: timestampUntil }
   };
 
@@ -48,6 +49,7 @@
         slaThresholdMinutes: 30,
         slaSnoozeDuration: 10,
         enableSlaHighlighting: true,
+        enableSlaNotifications: true,
         snoozedTickets: {}
       }, (items) => {
         cachedSettings = items;
@@ -312,6 +314,11 @@
 
   // Відображення плаваючих карток
   function renderNotifications(criticalList) {
+    if (!cachedSettings.enableSlaNotifications) {
+      removeNotifications();
+      return;
+    }
+
     const container = getOrCreateContainer();
     const now = Date.now();
     const snoozed = cachedSettings.snoozedTickets || {};
@@ -407,7 +414,7 @@
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local') {
         let needRefresh = false;
-        ['enableSlaTracking', 'slaThresholdMinutes', 'slaSnoozeDuration', 'enableSlaHighlighting', 'snoozedTickets'].forEach(key => {
+        ['enableSlaTracking', 'slaThresholdMinutes', 'slaSnoozeDuration', 'enableSlaHighlighting', 'enableSlaNotifications', 'snoozedTickets'].forEach(key => {
           if (changes[key]) {
             cachedSettings[key] = changes[key].newValue;
             needRefresh = true;

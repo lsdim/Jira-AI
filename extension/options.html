@@ -211,7 +211,7 @@
         <label for="slaThresholdMinutes">Поріг попередження (хвилин до завершення SLA):</label>
         <input type="number" id="slaThresholdMinutes" min="1" step="1" placeholder="Вкажіть хвилини (напр. 30, 60, 1000)...">
         <div style="font-size: 11px; color: #6b778c; margin-top: 4px;">
-          Можна вказати будь-яке число хвилин. Наприклад: <strong>30</strong> (30 хв), <strong>60</strong> (1 год), <strong>1200</strong> (20 год для тесту).
+          Можна вказати будь-яке число хвилин. Наприклад: <strong>30</strong> (30 хв), <strong>60</strong> (1 год), <strong>1200</strong> (20 год).
         </div>
       </div>
 
@@ -225,6 +225,17 @@
           <option value="60">1 година</option>
         </select>
       </div>
+
+      <div class="switch-wrapper" style="border-top: 1px solid #ebecf0; padding-top: 15px; margin-top: 10px;">
+        <label style="margin-bottom: 0;">Відображати спливаючі сповіщення (Toast)</label>
+        <label class="switch">
+          <input type="checkbox" id="enableSlaNotifications">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <p style="font-size: 11px; color: #6b778c; margin-top: -4px;">
+        Показує плаваючі картки з критичними заявками у правому верхньому куті екрана.
+      </p>
 
       <div class="switch-wrapper" style="border-top: 1px solid #ebecf0; padding-top: 15px; margin-top: 10px;">
         <label style="margin-bottom: 0;">Візуальна підсвітка заявок у списках та на сторінці</label>

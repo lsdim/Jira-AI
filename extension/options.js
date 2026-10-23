@@ -32,6 +32,7 @@ document.getElementById('save').onclick = () => {
     signatureText: document.getElementById('signatureText').value,
     // Налаштування відстеження SLA
     enableSlaTracking: document.getElementById('enableSlaTracking').checked,
+    enableSlaNotifications: document.getElementById('enableSlaNotifications').checked,
     slaThresholdMinutes: Number(document.getElementById('slaThresholdMinutes').value) || 30,
     slaSnoozeDuration: Number(document.getElementById('slaSnoozeDuration').value) || 10,
     enableSlaHighlighting: document.getElementById('enableSlaHighlighting').checked
@@ -66,6 +67,7 @@ function loadOptions() {
     signatureText: 'З повагою, ІТ підтримка АТ "Укрпошта"',
     // Значення за замовчуванням для SLA
     enableSlaTracking: true,
+    enableSlaNotifications: true,
     slaThresholdMinutes: 30,
     slaSnoozeDuration: 10,
     enableSlaHighlighting: true
@@ -91,6 +93,7 @@ function loadOptions() {
 
     // SLA поля
     document.getElementById('enableSlaTracking').checked = items.enableSlaTracking;
+    document.getElementById('enableSlaNotifications').checked = items.enableSlaNotifications !== false;
     document.getElementById('slaThresholdMinutes').value = items.slaThresholdMinutes || 30;
     document.getElementById('slaSnoozeDuration').value = items.slaSnoozeDuration || 10;
     document.getElementById('enableSlaHighlighting').checked = items.enableSlaHighlighting !== false;
