@@ -153,7 +153,8 @@
           priorityIcon: issue.fields.priority?.iconUrl || '',
           remainingMinutes: remMin,
           isBreached,
-          friendly: isBreached ? 'Прострочено' : (ongoing.remainingTimeHumanReadable || ongoing.remainingTime?.friendly || formatMinutes(remMin))
+          friendly: isBreached ? 'Прострочено' : (ongoing.remainingTimeHumanReadable || ongoing.remainingTime?.friendly || formatMinutes(remMin)),
+          friendlyBreach: isBreached ? 'Прострочено' : ongoing.breachTime?.friendly
         });
       }
     });
@@ -226,9 +227,23 @@
           badge.className = `jira-ai-sla-inline-badge ${className}`;
           badge.title = `SLA: ${item.friendly}`;
           badge.textContent = `⏱️ ${item.friendly}`;
-          //badge.textContent = `⏱️`;
           keyContainer.parentNode.insertBefore(badge, keyContainer.nextSibling);
         }*/
+		const keyContainer = row.querySelector(`[data-cell-name="${issueKey}_issuekey"], a.issue-link[data-issue-key="${issueKey}"]`) || row.querySelector('a.issue-link');
+        if (keyContainer && !row.querySelector('.jira-ai-sla-inline-badge')) {
+          const badge = document.createElement('span');
+          badge.className = `jira-ai-sla-inline-badge ${className}`;
+          badge.title = `SLA: ${item.friendlyBreach}`;
+          badge.textContent = `${item.friendly}`;
+          keyContainer.textContent = ''; 
+          keyContainer.appendChild(badge);
+		  // ВИДАЛЕННЯ КАРТИНКИ: шукаємо img поруч у сусідньому лінку
+		  const issueImg = row.querySelector('div[data-cell-name$="_issuetype"] img, a.issue-link img');
+		  if (issueImg) {
+		    issueImg.remove();
+		  }		  
+        }
+		
       }
     });
 

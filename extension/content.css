@@ -729,84 +729,170 @@
 
 /* Підсвітка рядків у таблицях черг */
 tr.jira-ai-sla-row-warning {
-  background-color: #fff9e6 !important;
-  border-left: 4px solid #ffab00 !important;
+  background-color: #ffecd2 !important;
+  border-left: 4px solid #ff9800 !important;
+  transition: background-color 0.2s ease;
 }
 tr.jira-ai-sla-row-warning > td {
-  background-color: #fff9e6 !important;
+  background-color: #ffecd2 !important;
+}
+tr.jira-ai-sla-row-warning:hover,
+tr.jira-ai-sla-row-warning:hover > td {
+  background-color: #fff7e6 !important; /* Дуже м'який оранжевий */
 }
 
 tr.jira-ai-sla-row-critical {
-  background-color: #fff0ed !important;
-  border-left: 4px solid #de350b !important;
+  background-color: #fff1f0 !important; /* Дуже м'який червоний */
+  border-left: 4px solid #f5222d !important;
+  transition: background-color 0.2s ease;
 }
 tr.jira-ai-sla-row-critical > td {
-  background-color: #fff0ed !important;
+  background-color: #fff1f0 !important;
+}
+tr.jira-ai-sla-row-critical:hover,
+tr.jira-ai-sla-row-critical:hover > td {
+  background-color: #ffccc7 !important;
 }
 
 /* Інлайн-бейдж біля ключа в списку */
 .jira-ai-sla-inline-badge {
   display: inline-block;
-  margin-left: 6px;
+  /*margin-left: 8px;*/
+  margin: 6px;
   font-size: 10px;
   font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 8px;
+  /*padding: 1px 6px;*/
+  padding: 2px 5px;
+  border-radius: 4px;
   vertical-align: middle;
+  line-height: 1.4;
+  /*text-transform: uppercase;*/
+  letter-spacing: 0.02em;
 }
 .jira-ai-sla-inline-badge.jira-ai-sla-row-warning {
-  background: #fff0b3;
-  color: #172b4d;
-  border: none !important;
+  /*background: #fff7e6;*/
+  /*color: #d46b08;*/
+  color: #cf1322;
+  border: 1px solid #ffd591 !important;
+  box-shadow: 0 4px 2px rgba(9, 30, 66, 0.2), 0 0 1px rgba(9, 30, 66, 0.31);
 }
 .jira-ai-sla-inline-badge.jira-ai-sla-row-critical {
-  background: #ffebe6;
-  color: #bf2600;
-  border: none !important;
+  background: #fff1f0;
+  color: #cf1322;
+  border: 1px solid #ffa39e !important;
 }
 
 /* Попереджувальний банер на сторінці заявки */
 .jira-ai-sla-banner {
-  padding: 10px 16px;
-  margin: 10px 0;
-  border-radius: 6px;
+  padding: 12px 20px;
+  margin: 15px 0;
+  border-radius: 4px;
   display: flex;
   align-items: center;
-  font-size: 13px;
-  box-shadow: 0 1px 3px rgba(9, 30, 66, 0.08);
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid transparent;
 }
 .jira-ai-sla-banner.warning {
-  background: #fff0b3;
-  color: #172b4d;
-  border-left: 4px solid #ffab00;
+  background: #fff7e6;
+  color: #874d00;
+  border-left: 5px solid #ffa940;
+  border-color: #ffe7ba;
 }
 .jira-ai-sla-banner.critical {
-  background: #ffebe6;
-  color: #bf2600;
-  border-left: 4px solid #de350b;
+  background: #fff1f0;
+  color: #820014;
+  border-left: 5px solid #ff4d4f;
+  border-color: #ffccc7;
 }
 .jira-ai-sla-banner-icon {
-  margin-right: 10px;
-  font-size: 16px;
+  margin-right: 12px;
+  font-size: 18px;
 }
 
 /* Підтримка темної теми Jira */
-html[data-color-mode="dark"] .jira-ai-sla-card {
-  background: #22272b;
-  color: #c7d1db;
+html[data-color-mode="dark"] .jira-ai-sla-card,
+body.theme-dark .jira-ai-sla-card {
+  background: #1d1d1d;
+  color: #e6edf3;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  border: 1px solid #30363d;
+  border-left: 5px solid #ffab00;
 }
-html[data-color-mode="dark"] .jira-ai-sla-card-body {
-  color: #9fadbc;
+html[data-color-mode="dark"] .jira-ai-sla-card-body,
+body.theme-dark .jira-ai-sla-card-body {
+  color: #8b949e;
 }
-html[data-color-mode="dark"] .jira-ai-sla-snooze-btn {
-  background: #2c333a !important;
-  color: #c7d1db !important;
-  border-color: #3b444c !important;
+html[data-color-mode="dark"] .jira-ai-sla-snooze-btn,
+body.theme-dark .jira-ai-sla-snooze-btn {
+  background: #2b2b2b !important;
+  color: #c9d1d9 !important;
+  border-color: #444 !important;
 }
-html[data-color-mode="dark"] tr.jira-ai-sla-row-warning {
-  background-color: #332b00 !important;
+html[data-color-mode="dark"] .jira-ai-sla-snooze-btn:hover,
+body.theme-dark .jira-ai-sla-snooze-btn:hover {
+  background: #3d3d3d !important;
+  color: #ffffff !important;
 }
-html[data-color-mode="dark"] tr.jira-ai-sla-row-critical {
-  background-color: #3e1b18 !important;
+
+/* Темна тема для рядків у черзі */
+html[data-color-mode="dark"] tr.jira-ai-sla-row-warning,
+body.theme-dark tr.jira-ai-sla-row-warning {
+  background-color: #2b2110 !important; /* Глибокий бурштиновий */
+  border-left: 4px solid #d46b08 !important;
+}
+html[data-color-mode="dark"] tr.jira-ai-sla-row-warning > td,
+body.theme-dark tr.jira-ai-sla-row-warning > td {
+  background-color: #2b2110 !important;
+}
+html[data-color-mode="dark"] tr.jira-ai-sla-row-warning:hover,
+html[data-color-mode="dark"] tr.jira-ai-sla-row-warning:hover > td,
+body.theme-dark tr.jira-ai-sla-row-warning:hover,
+body.theme-dark tr.jira-ai-sla-row-warning:hover > td {
+  background-color: #3e301a !important;
+}
+
+html[data-color-mode="dark"] tr.jira-ai-sla-row-critical,
+body.theme-dark tr.jira-ai-sla-row-critical {
+  background-color: #2a1215 !important; /* Глибокий червоний */
+  border-left: 4px solid #cf1322 !important;
+}
+html[data-color-mode="dark"] tr.jira-ai-sla-row-critical > td,
+body.theme-dark tr.jira-ai-sla-row-critical > td {
+  background-color: #2a1215 !important;
+}
+html[data-color-mode="dark"] tr.jira-ai-sla-row-critical:hover,
+html[data-color-mode="dark"] tr.jira-ai-sla-row-critical:hover > td,
+body.theme-dark tr.jira-ai-sla-row-critical:hover,
+body.theme-dark tr.jira-ai-sla-row-critical:hover > td {
+  background-color: #3d1a1e !important;
+}
+
+/* Темна тема для бейджів та банерів */
+html[data-color-mode="dark"] .jira-ai-sla-inline-badge.jira-ai-sla-row-warning,
+body.theme-dark .jira-ai-sla-inline-badge.jira-ai-sla-row-warning {
+  background: #3e301a;
+  color: #ffa940;
+  border: 1px solid #874d00 !important;
+}
+html[data-color-mode="dark"] .jira-ai-sla-inline-badge.jira-ai-sla-row-critical,
+body.theme-dark .jira-ai-sla-inline-badge.jira-ai-sla-row-critical {
+  background: #3d1a1e;
+  color: #ff4d4f;
+  border: 1px solid #820014 !important;
+}
+
+html[data-color-mode="dark"] .jira-ai-sla-banner.warning,
+body.theme-dark .jira-ai-sla-banner.warning {
+  background: #2b2110;
+  color: #ffd591;
+  border-left-color: #ffa940;
+  border-color: #4d3d1a;
+}
+html[data-color-mode="dark"] .jira-ai-sla-banner.critical,
+body.theme-dark .jira-ai-sla-banner.critical {
+  background: #2a1215;
+  color: #ffa39e;
+  border-left-color: #ff4d4f;
+  border-color: #4d1a1e;
 }
