@@ -97,7 +97,37 @@ function loadOptions() {
     document.getElementById('slaThresholdMinutes').value = items.slaThresholdMinutes || 30;
     document.getElementById('slaSnoozeDuration').value = items.slaSnoozeDuration || 10;
     document.getElementById('enableSlaHighlighting').checked = items.enableSlaHighlighting !== false;
+
+    // Оновлюємо активність полів при завантаженні
+    toggleSlaFields(items.enableSlaTracking);
   });
 }
+
+// Функція для керування активністю полів SLA
+function toggleSlaFields(enabled) {
+  const fields = [
+    'slaThresholdMinutes',
+    'slaSnoozeDuration',
+    'enableSlaNotifications',
+    'enableSlaHighlighting'
+  ];
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.disabled = !enabled;
+      // Додаємо візуальний ефект неактивності для батьківського контейнера, якщо потрібно
+      const wrapper = el.closest('.field-group, .switch-wrapper');
+      if (wrapper) {
+        wrapper.style.opacity = enabled ? '1' : '0.5';
+        wrapper.style.pointerEvents = enabled ? 'auto' : 'none';
+      }
+    }
+  });
+}
+
+// Слухач для головного перемикача SLA
+document.getElementById('enableSlaTracking').addEventListener('change', (e) => {
+  toggleSlaFields(e.target.checked);
+});
 
 document.addEventListener('DOMContentLoaded', loadOptions);
