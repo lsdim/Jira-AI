@@ -185,7 +185,7 @@
     let badge = document.getElementById('jira-ai-sla-top-badge');
     
     if (!badge) {
-      badge = document.createElement('div');
+      badge = document.createElement('li');
       badge.id = 'jira-ai-sla-top-badge';
       badge.title = 'Заявки, що підпадають під SLA періоди';
       
@@ -198,20 +198,27 @@
         }
       };
 
-      // Знаходимо місце вставки: в самому кінці верхнього меню Jira
-      const targetContainer = document.querySelector('#header .aui-header-secondary') || 
-                              document.querySelector('.aui-header-secondary') || 
-                              document.querySelector('#header .aui-header-inner') || 
-                              document.querySelector('#header');
-      
-      if (targetContainer) {
-        targetContainer.appendChild(badge);
+      // Вставляємо відразу після кнопки Create (li#create-menu) у верхньому меню
+      const createMenu = document.getElementById('create-menu') || document.querySelector('#create-menu');
+
+      if (createMenu && createMenu.parentNode) {
+        createMenu.parentNode.insertBefore(badge, createMenu.nextSibling);
       } else {
-        document.body.appendChild(badge);
-        badge.style.position = 'fixed';
-        badge.style.top = '10px';
-        badge.style.right = '10px';
-        badge.style.zIndex = '10001';
+        // Fallback: якщо #create-menu не знайдено, вставляємо у головне меню / шапку
+        const targetContainer = document.querySelector('#header .aui-header-primary') || 
+                                document.querySelector('.aui-header-primary') || 
+                                document.querySelector('#header .aui-header-inner') || 
+                                document.querySelector('#header');
+        
+        if (targetContainer) {
+          targetContainer.appendChild(badge);
+        } else {
+          document.body.appendChild(badge);
+          badge.style.position = 'fixed';
+          badge.style.top = '10px';
+          badge.style.right = '10px';
+          badge.style.zIndex = '10001';
+        }
       }
     }
 
