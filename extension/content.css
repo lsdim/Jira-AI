@@ -896,3 +896,51 @@ body.theme-dark .jira-ai-sla-banner.critical {
   border-left-color: #ff4d4f;
   border-color: #4d1a1e;
 }
+
+/* SLA Top Menu Badge Widget */
+#jira-ai-sla-top-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  margin-left: 10px;
+  margin-right: 10px;
+  background: #fff0b3;
+  color: #172b4d;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid #ffab00;
+  vertical-align: middle;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+#jira-ai-sla-top-badge.critical {
+  background: #ffebe6;
+  color: #de350b;
+  border-color: #ff5630;
+  animation: sla-badge-pulse 1.8s infinite;
+}
+
+#jira-ai-sla-top-badge:hover {
+  transform: scale(1.05);
+  opacity: 0.95;
+}
+
+html[data-color-mode="dark"] #jira-ai-sla-top-badge,
+body.theme-dark #jira-ai-sla-top-badge {
+  background: #3e301a;
+  color: #ffa940;
+  border-color: #874d00;
+}
+
+html[data-color-mode="dark"] #jira-ai-sla-top-badge.critical,
+body.theme-dark #jira-ai-sla-top-badge.critical {
+  background: #3d1a1e;
+  color: #ff4d4f;
+  border-color: #820014;
+}
+

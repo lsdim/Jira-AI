@@ -172,6 +172,52 @@
 
     // 2. Відображаємо сповіщення
     renderNotifications(criticalList);
+
+    // 3. Оновлюємо бейдж SLA у верхньому меню Jira
+    updateSlaTopMenuBadge(criticalList);
+  }
+
+  // Оновлення бейджа SLA у верхньому меню Jira
+  function updateSlaTopMenuBadge(criticalList) {
+    const count = criticalList ? criticalList.length : 0;
+    const hasCritical = criticalList.some(item => item.isBreached || item.remainingMinutes <= 10);
+
+    let badge = document.getElementById('jira-ai-sla-top-badge');
+    
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.id = 'jira-ai-sla-top-badge';
+      badge.title = 'Заявки, що підпадають під SLA періоди';
+      
+      badge.onclick = (e) => {
+        e.preventDefault();
+        checkSla();
+        const container = document.getElementById(SLA_CONFIG.containerId);
+        if (container) {
+          container.style.display = container.style.display === 'none' ? 'flex' : 'none';
+        }
+      };
+
+      // Знаходимо місце вставки: в самому кінці верхнього меню Jira
+      const targetContainer = document.querySelector('#header .aui-header-secondary') || 
+                              document.querySelector('.aui-header-secondary') || 
+                              document.querySelector('#header .aui-header-inner') || 
+                              document.querySelector('#header');
+      
+      if (targetContainer) {
+        targetContainer.appendChild(badge);
+      } else {
+        document.body.appendChild(badge);
+        badge.style.position = 'fixed';
+        badge.style.top = '10px';
+        badge.style.right = '10px';
+        badge.style.zIndex = '10001';
+      }
+    }
+
+    const icon = hasCritical ? '🔥' : '⏱️';
+    badge.className = `jira-ai-sla-top-badge ${hasCritical ? 'critical' : 'warning'}`;
+    badge.innerHTML = `<span>${icon}</span><span>SLA: ${count}</span>`;
   }
 
   // Очищення підсвітки
