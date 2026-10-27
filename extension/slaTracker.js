@@ -180,9 +180,17 @@
   // Оновлення бейджа SLA у верхньому меню Jira
   function updateSlaTopMenuBadge(criticalList) {
     const count = criticalList ? criticalList.length : 0;
-    const hasCritical = criticalList.some(item => item.isBreached || item.remainingMinutes <= 10);
-
+    
     let badge = document.getElementById('jira-ai-sla-top-badge');
+
+    if (count === 0) {
+      if (badge) {
+        badge.style.display = 'none';
+      }
+      return;
+    }
+
+    const hasCritical = criticalList.some(item => item.isBreached || item.remainingMinutes <= 10);
     
     if (!badge) {
       badge = document.createElement('li');
@@ -225,6 +233,7 @@
     const icon = hasCritical ? '🔥' : '⏱️';
     badge.className = `jira-ai-sla-top-badge ${hasCritical ? 'critical' : 'warning'}`;
     badge.innerHTML = `<span>${icon}</span><span>SLA: ${count}</span>`;
+    badge.style.display = 'inline-flex';
   }
 
   // Очищення підсвітки
