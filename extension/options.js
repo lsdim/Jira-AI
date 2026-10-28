@@ -34,7 +34,6 @@ document.getElementById('save').onclick = () => {
     enableSlaTracking: document.getElementById('enableSlaTracking').checked,
     enableSlaNotifications: document.getElementById('enableSlaNotifications').checked,
     slaThresholdMinutes: Number(document.getElementById('slaThresholdMinutes').value) || 30,
-    slaSnoozeDuration: Number(document.getElementById('slaSnoozeDuration').value) || 10,
     enableSlaHighlighting: document.getElementById('enableSlaHighlighting').checked
   };
 
@@ -69,7 +68,6 @@ function loadOptions() {
     enableSlaTracking: true,
     enableSlaNotifications: true,
     slaThresholdMinutes: 30,
-    slaSnoozeDuration: 10,
     enableSlaHighlighting: true
   }, (items) => {
     document.getElementById('apiKey').value = items.geminiApiKey;
@@ -95,7 +93,6 @@ function loadOptions() {
     document.getElementById('enableSlaTracking').checked = items.enableSlaTracking;
     document.getElementById('enableSlaNotifications').checked = items.enableSlaNotifications !== false;
     document.getElementById('slaThresholdMinutes').value = items.slaThresholdMinutes || 30;
-    document.getElementById('slaSnoozeDuration').value = items.slaSnoozeDuration || 10;
     document.getElementById('enableSlaHighlighting').checked = items.enableSlaHighlighting !== false;
 
     // Оновлюємо активність полів при завантаженні
@@ -107,7 +104,6 @@ function loadOptions() {
 function toggleSlaFields(enabled) {
   const fields = [
     'slaThresholdMinutes',
-    'slaSnoozeDuration',
     'enableSlaNotifications',
     'enableSlaHighlighting'
   ];

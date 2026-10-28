@@ -428,21 +428,33 @@
         </div>
         <div class="jira-ai-sla-card-actions">
           <a href="/browse/${item.key}" class="aui-button aui-button-compact aui-button-primary jira-ai-sla-open-btn">Перейти</a>
-          <button class="aui-button aui-button-compact jira-ai-sla-snooze-btn" title="Не показувати на всіх вкладках ${cachedSettings.slaSnoozeDuration || 10} хв">
-            ⏰ Відкласти (${cachedSettings.slaSnoozeDuration || 10} хв)
-          </button>
+          <div class="jira-ai-sla-snooze-group">
+            <select class="jira-ai-sla-snooze-select" title="Час відкладання для цієї заявки">
+              <option value="5">5 хв</option>
+              <option value="10">10 хв</option>
+              <option value="15" selected>15 хв</option>
+              <option value="30">30 хв</option>
+              <option value="60">1 год</option>
+              <option value="120">2 год</option>
+            </select>
+            <button class="aui-button aui-button-compact jira-ai-sla-snooze-btn" title="Відкласти це сповіщення">
+              ⏰ Відкласти
+            </button>
+          </div>
         </div>
       `;
 
       // 1. Подія "Відкласти" (Snooze): зберігається глобально у chrome.storage.local
       const snoozeBtn = card.querySelector('.jira-ai-sla-snooze-btn');
+      const snoozeSelect = card.querySelector('.jira-ai-sla-snooze-select');
       snoozeBtn.onclick = async (e) => {
         e.preventDefault();
-        const snoozeDurationMs = (Number(cachedSettings.slaSnoozeDuration) || 10) * 60 * 1000;
+        const minutes = Number(snoozeSelect.value) || 15;
+        const snoozeDurationMs = minutes * 60 * 1000;
         cachedSettings.snoozedTickets = cachedSettings.snoozedTickets || {};
         cachedSettings.snoozedTickets[item.key] = Date.now() + snoozeDurationMs;
         await chrome.storage.local.set({ snoozedTickets: cachedSettings.snoozedTickets });
-        console.log(`[Jira AI Helper] Відкладено ${item.key} на ${cachedSettings.slaSnoozeDuration || 10} хв.`);
+        console.log(`[Jira AI Helper] Відкладено ${item.key} на ${minutes} хв.`);
         card.classList.add('fade-out');
         setTimeout(() => card.remove(), 250);
       };
