@@ -34,7 +34,8 @@ document.getElementById('save').onclick = () => {
     enableSlaTracking: document.getElementById('enableSlaTracking').checked,
     enableSlaNotifications: document.getElementById('enableSlaNotifications').checked,
     slaThresholdMinutes: Number(document.getElementById('slaThresholdMinutes').value) || 30,
-    enableSlaHighlighting: document.getElementById('enableSlaHighlighting').checked
+    enableSlaHighlighting: document.getElementById('enableSlaHighlighting').checked,
+    enableSlaTopBadge: document.getElementById('enableSlaTopBadge').checked
   };
 
   chrome.storage.local.set(settings, () => {
@@ -68,7 +69,8 @@ function loadOptions() {
     enableSlaTracking: true,
     enableSlaNotifications: true,
     slaThresholdMinutes: 30,
-    enableSlaHighlighting: true
+    enableSlaHighlighting: true,
+    enableSlaTopBadge: true
   }, (items) => {
     document.getElementById('apiKey').value = items.geminiApiKey;
     document.getElementById('prompt').value = items.userPrompt || window.DEFAULT_PROMPT || '';
@@ -94,6 +96,7 @@ function loadOptions() {
     document.getElementById('enableSlaNotifications').checked = items.enableSlaNotifications !== false;
     document.getElementById('slaThresholdMinutes').value = items.slaThresholdMinutes || 30;
     document.getElementById('enableSlaHighlighting').checked = items.enableSlaHighlighting !== false;
+    document.getElementById('enableSlaTopBadge').checked = items.enableSlaTopBadge !== false;
 
     // Оновлюємо активність полів при завантаженні
     toggleSlaFields(items.enableSlaTracking);
@@ -105,7 +108,8 @@ function toggleSlaFields(enabled) {
   const fields = [
     'slaThresholdMinutes',
     'enableSlaNotifications',
-    'enableSlaHighlighting'
+    'enableSlaHighlighting',
+    'enableSlaTopBadge'
   ];
   fields.forEach(id => {
     const el = document.getElementById(id);

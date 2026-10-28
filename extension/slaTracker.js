@@ -47,9 +47,9 @@
       chrome.storage.local.get({
         enableSlaTracking: true,
         slaThresholdMinutes: 30,
-        slaSnoozeDuration: 10,
         enableSlaHighlighting: true,
         enableSlaNotifications: true,
+        enableSlaTopBadge: true,
         snoozedTickets: {}
       }, (items) => {
         cachedSettings = items;
@@ -183,7 +183,7 @@
     
     let badge = document.getElementById('jira-ai-sla-top-badge');
 
-    if (count === 0) {
+    if (!cachedSettings.enableSlaTopBadge || count === 0) {
       if (badge) {
         badge.style.display = 'none';
       }
@@ -488,7 +488,7 @@
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local') {
         let needRefresh = false;
-        ['enableSlaTracking', 'slaThresholdMinutes', 'slaSnoozeDuration', 'enableSlaHighlighting', 'enableSlaNotifications', 'snoozedTickets'].forEach(key => {
+        ['enableSlaTracking', 'slaThresholdMinutes', 'enableSlaHighlighting', 'enableSlaNotifications', 'enableSlaTopBadge', 'snoozedTickets'].forEach(key => {
           if (changes[key]) {
             cachedSettings[key] = changes[key].newValue;
             needRefresh = true;
