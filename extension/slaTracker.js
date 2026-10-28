@@ -81,6 +81,88 @@
     return [];
   }
 
+  // Пряма перевірка SLA для поточної відкритої сторінки заявки (/browse/ або /queues/ тощо)
+  async function checkCurrentIssueSla() {
+    const currentKeyMatch = window.location.href.match(/\/([A-Z0-9]+-\d+)(?:\/|$|\?|\#)/i) || window.location.href.match(/([A-Z0-9]+-\d+)/i);
+    if (!currentKeyMatch || !currentKeyMatch[1]) {
+      const existingBanner = document.getElementById('jira-ai-sla-issue-banner');
+      if (existingBanner) existingBanner.remove();
+      return;
+    }
+
+    const currentKey = currentKeyMatch[1];
+    try {
+      const response = await fetch(`/rest/api/2/issue/${currentKey}?fields=summary,status,priority,${SLA_CONFIG.slaFieldId}`);
+      if (!response.ok) return;
+      const issue = await response.json();
+
+      const statusName = (issue.fields?.status?.name || '').toLowerCase();
+      if (statusName.includes('закрит') || statusName.includes('вирішен') || statusName.includes('closed') || statusName.includes('resolved')) {
+        const existingBanner = document.getElementById('jira-ai-sla-issue-banner');
+        if (existingBanner) existingBanner.remove();
+        return;
+      }
+
+      const slaField = issue.fields?.[SLA_CONFIG.slaFieldId];
+      if (!slaField) {
+        const existingBanner = document.getElementById('jira-ai-sla-issue-banner');
+        if (existingBanner) existingBanner.remove();
+        return;
+      }
+
+      let ongoing = slaField.ongoingCycle || slaField.goalView;
+      if (!ongoing || ongoing.paused === true) {
+        const existingBanner = document.getElementById('jira-ai-sla-issue-banner');
+        if (existingBanner) existingBanner.remove();
+        return;
+      }
+
+      const now = Date.now();
+      const thresholdMinutes = Number(cachedSettings.slaThresholdMinutes) || 30;
+      const thresholdMs = thresholdMinutes * 60 * 1000;
+
+      let remainingMs = 0;
+      if (ongoing.breachTime && ongoing.breachTime.epochMillis) {
+        remainingMs = ongoing.breachTime.epochMillis - now;
+      } else if (ongoing.remainingTime && typeof ongoing.remainingTime.millis === 'number') {
+        remainingMs = ongoing.remainingTime.millis;
+      } else if (typeof ongoing.remainingTime === 'string') {
+        const timeStr = ongoing.remainingTime;
+        if (timeStr.includes(':')) {
+          const parts = timeStr.split(':').map(Number);
+          remainingMs = (parts[0] * 60 + parts[1]) * 60 * 1000;
+        } else {
+          const hMatch = timeStr.match(/(\d+)\s*h/);
+          const mMatch = timeStr.match(/(\d+)\s*m/);
+          const h = hMatch ? parseInt(hMatch[1], 10) : 0;
+          const m = mMatch ? parseInt(mMatch[1], 10) : 0;
+          remainingMs = (h * 60 + m) * 60 * 1000;
+        }
+      }
+
+      const remainingMinutes = Math.round(remainingMs / 60000);
+      const isBreached = ongoing.breached || ongoing.failed || remainingMs <= 0;
+      const isUrgent = remainingMs <= thresholdMs;
+
+      if (isBreached || isUrgent) {
+        const remMin = Math.max(0, remainingMinutes);
+        const item = {
+          key: issue.key,
+          summary: issue.fields.summary || '',
+          remainingMinutes: remMin,
+          isBreached,
+          friendly: isBreached ? 'Прострочено' : (ongoing.remainingTimeHumanReadable || ongoing.remainingTime?.friendly || formatMinutes(remMin))
+        };
+        renderIssueTopBanner(item);
+      } else {
+        const existingBanner = document.getElementById('jira-ai-sla-issue-banner');
+        if (existingBanner) existingBanner.remove();
+      }
+    } catch (e) {
+      console.warn('[Jira AI Helper] Помилка прямої перевірки SLA поточної заявки:', e);
+    }
+  }
+
   // Перевірка та обробка заявок
   async function checkSla() {
     console.log('[Jira AI Helper] === Запуск перевірки SLA ===');
@@ -89,7 +171,17 @@
       console.log('[Jira AI Helper] Відстеження SLA вимкнено.');
       removeNotifications();
       clearHighlighting();
+      const existingBanner = document.getElementById('jira-ai-sla-issue-banner');
+      if (existingBanner) existingBanner.remove();
       return;
+    }
+
+    // Перевіряємо також поточну сторінку заявки напряму через API
+    if (cachedSettings.enableSlaHighlighting) {
+      await checkCurrentIssueSla();
+    } else {
+      const existingBanner = document.getElementById('jira-ai-sla-issue-banner');
+      if (existingBanner) existingBanner.remove();
     }
 
     const issues = await fetchAssignedIssues();
@@ -315,9 +407,8 @@
       console.log(`[Jira AI Helper] Підсвічено рядків у черзі (тільки мої заявки): ${highlightedCount}`);
     }
 
-    // 2. Підсвітка банером на самій сторінці заявки (/browse/SD-...)
-    const currentPath = window.location.pathname;
-    const currentKeyMatch = currentPath.match(/\/browse\/([A-Z0-9]+-\d+)/i);
+    // 2. Підсвітка банером на самій сторінці заявки (/browse/ або /queues/ тощо)
+    const currentKeyMatch = window.location.href.match(/\/([A-Z0-9]+-\d+)(?:\/|$|\?|\#)/i) || window.location.href.match(/([A-Z0-9]+-\d+)/i);
     if (currentKeyMatch && currentKeyMatch[1]) {
       const currentKey = currentKeyMatch[1];
       if (criticalMap.has(currentKey)) {
@@ -332,11 +423,35 @@
 
   // Банер угорі сторінки поточної заявки
   function renderIssueTopBanner(item) {
-    if (document.getElementById('jira-ai-sla-issue-banner')) return;
-
-    const banner = document.createElement('div');
-    banner.id = 'jira-ai-sla-issue-banner';
+    let banner = document.getElementById('jira-ai-sla-issue-banner');
     const isCrit = item.isBreached || item.remainingMinutes <= 10;
+    
+    if (banner) {
+      banner.className = `jira-ai-sla-banner ${isCrit ? 'critical' : 'warning'}`;
+      banner.innerHTML = `
+        <div class="jira-ai-sla-banner-content">
+          <span class="jira-ai-sla-banner-icon">${isCrit ? '🔥' : '⚠️'}</span>
+          <span class="jira-ai-sla-banner-text">
+            <strong>Увага SLA:</strong> До завершення терміну обслуговування цієї заявки <strong>${item.friendly}</strong>!
+          </span>
+        </div>
+      `;
+      // Перевіряємо, чи банер все ще прикріплений до DOM (на випадок якщо Jira його стерла)
+      if (!document.body.contains(banner)) {
+        const targetHeader = document.querySelector(SLA_CONFIG.issueHeaderSelector) || document.getElementById('stalker') || document.querySelector('.issue-header');
+        if (targetHeader && targetHeader.parentNode) {
+          targetHeader.parentNode.insertBefore(banner, targetHeader);
+        } else {
+          const mainContent = document.getElementById('content') || document.querySelector('#jira');
+          if (mainContent) mainContent.prepend(banner);
+          else document.body.prepend(banner);
+        }
+      }
+      return;
+    }
+
+    banner = document.createElement('div');
+    banner.id = 'jira-ai-sla-issue-banner';
     banner.className = `jira-ai-sla-banner ${isCrit ? 'critical' : 'warning'}`;
     
     banner.innerHTML = `
@@ -348,12 +463,16 @@
       </div>
     `;
 
-    const targetHeader = document.querySelector(SLA_CONFIG.issueHeaderSelector) || document.getElementById('stalker');
-    if (targetHeader) {
+    const targetHeader = document.querySelector(SLA_CONFIG.issueHeaderSelector) || document.getElementById('stalker') || document.querySelector('.issue-header');
+    if (targetHeader && targetHeader.parentNode) {
       targetHeader.parentNode.insertBefore(banner, targetHeader);
     } else {
-      const mainContent = document.getElementById('content');
-      if (mainContent) mainContent.prepend(banner);
+      const mainContent = document.getElementById('content') || document.querySelector('#jira');
+      if (mainContent) {
+        mainContent.prepend(banner);
+      } else {
+        document.body.prepend(banner);
+      }
     }
   }
 
@@ -523,6 +642,18 @@
     if (targetNode) {
       domObserver.observe(targetNode, { childList: true, subtree: true });
     }
+
+    // Відстеження зміни URL у Jira SPA (перехід між сторінками заявок без перезавантаження)
+    let lastUrl = location.href;
+    const urlObserver = new MutationObserver(() => {
+      const url = location.href;
+      if (url !== lastUrl) {
+        lastUrl = url;
+        console.log('[Jira AI Helper] Зміна URL у Jira SPA:', url);
+        setTimeout(checkSla, 800);
+      }
+    });
+    urlObserver.observe(document, { subtree: true, childList: true });
   }
 
   // Старт після завантаження DOM
