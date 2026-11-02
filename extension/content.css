@@ -916,7 +916,7 @@ body.theme-dark .jira-ai-sla-banner.critical {
   border: 1px solid #ffab00;
   vertical-align: middle;
   transition: all 0.2s;
-  //box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  /* box-shadow: 0 1px 3px rgba(0,0,0,0.1); */
   box-shadow: 0 4px 2px rgba(9, 30, 66, 0.2), 0 0 1px rgba(9, 30, 66, 0.31);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   list-style: none;
@@ -981,3 +981,129 @@ body.theme-dark .jira-ai-sla-snooze-select {
 }
 
 
+
+
+/* SLA Top Menu Dropdown Popover */
+.jira-ai-sla-top-badge-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.jira-ai-sla-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  width: 360px;
+  max-height: 480px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(9, 30, 66, 0.2), 0 0 1px rgba(9, 30, 66, 0.31);
+  border: 1px solid #dfe1e6;
+  z-index: 10002;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: normal;
+  cursor: default;
+}
+
+.jira-ai-sla-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f4f5f7;
+  border-bottom: 1px solid #dfe1e6;
+  font-size: 13px;
+  font-weight: 600;
+  color: #172b4d;
+}
+
+.jira-ai-sla-dropdown-list {
+  overflow-y: auto;
+  max-height: 380px;
+  padding: 4px 0;
+  margin: 0;
+  list-style: none;
+}
+
+.jira-ai-sla-dropdown-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #f4f5f7;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+
+.jira-ai-sla-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.jira-ai-sla-dropdown-item:hover {
+  background: #ebf5ff;
+}
+
+.jira-ai-sla-dropdown-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.jira-ai-sla-dropdown-item-key {
+  font-weight: 700;
+  color: #0052cc;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.jira-ai-sla-dropdown-item-title {
+  font-size: 12px;
+  color: #5e6c84;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jira-ai-sla-dropdown-empty {
+  padding: 20px;
+  text-align: center;
+  color: #6b778c;
+  font-size: 13px;
+}
+
+/* Dark mode for dropdown */
+html[data-color-mode="dark"] .jira-ai-sla-dropdown,
+body.theme-dark .jira-ai-sla-dropdown {
+  background: #1d1d1d;
+  border-color: #30363d;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  color: #e6edf3;
+}
+
+html[data-color-mode="dark"] .jira-ai-sla-dropdown-header,
+body.theme-dark .jira-ai-sla-dropdown-header {
+  background: #2b2b2b;
+  border-color: #3d3d3d;
+  color: #e6edf3;
+}
+
+html[data-color-mode="dark"] .jira-ai-sla-dropdown-item,
+body.theme-dark .jira-ai-sla-dropdown-item {
+  border-bottom-color: #2b2b2b;
+}
+
+html[data-color-mode="dark"] .jira-ai-sla-dropdown-item:hover,
+body.theme-dark .jira-ai-sla-dropdown-item:hover {
+  background: #2a3441;
+}
+
+html[data-color-mode="dark"] .jira-ai-sla-dropdown-item-title,
+body.theme-dark .jira-ai-sla-dropdown-item-title {
+  color: #8b949e;
+}

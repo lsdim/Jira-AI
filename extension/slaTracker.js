@@ -24,6 +24,7 @@
     slaSnoozeDuration: 10,
     enableSlaHighlighting: true,
     enableSlaNotifications: true,
+    enableSlaTopBadge: true,
     snoozedTickets: {} // { issueKey: timestampUntil }
   };
 
@@ -41,6 +42,72 @@
     return `${m} хв`;
   }
 
+  // Очищення застарілих відкладених заявок (Snooze Cleanup)
+  function cleanExpiredSnoozes(snoozed) {
+    if (!snoozed || typeof snoozed !== 'object') return {};
+    const now = Date.now();
+    let hasExpired = false;
+    const cleaned = {};
+    for (const [key, timestamp] of Object.entries(snoozed)) {
+      if (timestamp && timestamp > now) {
+        cleaned[key] = timestamp;
+      } else {
+        hasExpired = true;
+      }
+    }
+    if (hasExpired) {
+      chrome.storage.local.set({ snoozedTickets: cleaned });
+    }
+    return cleaned;
+  }
+
+  // Уніфікований розрахунок залишку часу SLA у мілісекундах та хвилинах
+  function parseSlaCycle(ongoing, now) {
+    if (!ongoing) return null;
+
+    let remainingMs = 0;
+    if (ongoing.breachTime && ongoing.breachTime.epochMillis) {
+      remainingMs = ongoing.breachTime.epochMillis - now;
+    } else if (ongoing.remainingTime && typeof ongoing.remainingTime.millis === 'number') {
+      remainingMs = ongoing.remainingTime.millis;
+    } else if (typeof ongoing.remainingTime === 'string') {
+      const timeStr = ongoing.remainingTime.trim();
+      const isNegative = timeStr.startsWith('-');
+      const cleanStr = isNegative ? timeStr.slice(1).trim() : timeStr;
+
+      if (cleanStr.includes(':')) {
+        const parts = cleanStr.split(':').map(Number);
+        const ms = ((parts[0] || 0) * 60 + (parts[1] || 0)) * 60 * 1000;
+        remainingMs = isNegative ? -ms : ms;
+      } else {
+        const wMatch = cleanStr.match(/(\d+)\s*w/i);
+        const dMatch = cleanStr.match(/(\d+)\s*d/i);
+        const hMatch = cleanStr.match(/(\d+)\s*h/i);
+        const mMatch = cleanStr.match(/(\d+)\s*m/i);
+
+        const w = wMatch ? parseInt(wMatch[1], 10) : 0;
+        const d = dMatch ? parseInt(dMatch[1], 10) : 0;
+        const h = hMatch ? parseInt(hMatch[1], 10) : 0;
+        const m = mMatch ? parseInt(mMatch[1], 10) : 0;
+
+        const totalMinutes = w * 7 * 24 * 60 + d * 24 * 60 + h * 60 + m;
+        const ms = totalMinutes * 60 * 1000;
+        remainingMs = isNegative ? -ms : ms;
+      }
+    }
+
+    const remainingMinutes = Math.round(remainingMs / 60000);
+    const isBreached = Boolean(ongoing.breached || ongoing.failed || remainingMs <= 0);
+
+    return {
+      remainingMs,
+      remainingMinutes,
+      isBreached,
+      friendly: isBreached ? 'Прострочено' : (ongoing.remainingTimeHumanReadable || ongoing.remainingTime?.friendly || formatMinutes(Math.max(0, remainingMinutes))),
+      friendlyBreach: isBreached ? 'Прострочено' : (ongoing.breachTime?.friendly || '')
+    };
+  }
+
   // Завантаження налаштувань
   async function loadSettings() {
     return new Promise((resolve) => {
@@ -52,6 +119,7 @@
         enableSlaTopBadge: true,
         snoozedTickets: {}
       }, (items) => {
+        items.snoozedTickets = cleanExpiredSnoozes(items.snoozedTickets);
         cachedSettings = items;
         console.log('[Jira AI Helper] Поточні налаштування SLA:', cachedSettings);
         resolve(items);
@@ -121,37 +189,24 @@
       const thresholdMinutes = Number(cachedSettings.slaThresholdMinutes) || 30;
       const thresholdMs = thresholdMinutes * 60 * 1000;
 
-      let remainingMs = 0;
-      if (ongoing.breachTime && ongoing.breachTime.epochMillis) {
-        remainingMs = ongoing.breachTime.epochMillis - now;
-      } else if (ongoing.remainingTime && typeof ongoing.remainingTime.millis === 'number') {
-        remainingMs = ongoing.remainingTime.millis;
-      } else if (typeof ongoing.remainingTime === 'string') {
-        const timeStr = ongoing.remainingTime;
-        if (timeStr.includes(':')) {
-          const parts = timeStr.split(':').map(Number);
-          remainingMs = (parts[0] * 60 + parts[1]) * 60 * 1000;
-        } else {
-          const hMatch = timeStr.match(/(\d+)\s*h/);
-          const mMatch = timeStr.match(/(\d+)\s*m/);
-          const h = hMatch ? parseInt(hMatch[1], 10) : 0;
-          const m = mMatch ? parseInt(mMatch[1], 10) : 0;
-          remainingMs = (h * 60 + m) * 60 * 1000;
-        }
+      const slaInfo = parseSlaCycle(ongoing, now);
+      if (!slaInfo) {
+        const existingBanner = document.getElementById('jira-ai-sla-issue-banner');
+        if (existingBanner) existingBanner.remove();
+        return;
       }
 
-      const remainingMinutes = Math.round(remainingMs / 60000);
-      const isBreached = ongoing.breached || ongoing.failed || remainingMs <= 0;
-      const isUrgent = remainingMs <= thresholdMs;
+      const isUrgent = slaInfo.remainingMs <= thresholdMs;
 
-      if (isBreached || isUrgent) {
-        const remMin = Math.max(0, remainingMinutes);
+      if (slaInfo.isBreached || isUrgent) {
+        const remMin = Math.max(0, slaInfo.remainingMinutes);
         const item = {
           key: issue.key,
           summary: issue.fields.summary || '',
           remainingMinutes: remMin,
-          isBreached,
-          friendly: isBreached ? 'Прострочено' : (ongoing.remainingTimeHumanReadable || ongoing.remainingTime?.friendly || formatMinutes(remMin))
+          isBreached: slaInfo.isBreached,
+          friendly: slaInfo.friendly,
+          friendlyBreach: slaInfo.friendlyBreach
         };
         renderIssueTopBanner(item);
       } else {
@@ -173,6 +228,8 @@
       clearHighlighting();
       const existingBanner = document.getElementById('jira-ai-sla-issue-banner');
       if (existingBanner) existingBanner.remove();
+      const dropdown = document.getElementById('jira-ai-sla-dropdown');
+      if (dropdown) dropdown.remove();
       return;
     }
 
@@ -211,34 +268,16 @@
         return;
       }
 
-      // Розрахунок залишку часу
-      let remainingMs = 0;
-      if (ongoing.breachTime && ongoing.breachTime.epochMillis) {
-        remainingMs = ongoing.breachTime.epochMillis - now;
-      } else if (ongoing.remainingTime && typeof ongoing.remainingTime.millis === 'number') {
-        remainingMs = ongoing.remainingTime.millis;
-      } else if (typeof ongoing.remainingTime === 'string') {
-        const timeStr = ongoing.remainingTime;
-        if (timeStr.includes(':')) {
-          const parts = timeStr.split(':').map(Number);
-          remainingMs = (parts[0] * 60 + parts[1]) * 60 * 1000;
-        } else {
-          const hMatch = timeStr.match(/(\d+)\s*h/);
-          const mMatch = timeStr.match(/(\d+)\s*m/);
-          const h = hMatch ? parseInt(hMatch[1], 10) : 0;
-          const m = mMatch ? parseInt(mMatch[1], 10) : 0;
-          remainingMs = (h * 60 + m) * 60 * 1000;
-        }
-      }
+      // Розрахунок залишку часу через єдину функцію
+      const slaInfo = parseSlaCycle(ongoing, now);
+      if (!slaInfo) return;
 
-      const remainingMinutes = Math.round(remainingMs / 60000);
-      const isBreached = ongoing.breached || ongoing.failed || remainingMs <= 0;
-      const isUrgent = remainingMs <= thresholdMs;
+      const isUrgent = slaInfo.remainingMs <= thresholdMs;
 
-      console.log(`[Jira AI Helper] Моя заявка ${issue.key}: залишок SLA ${remainingMinutes} хв (поріг ${thresholdMinutes} хв).`);
+      console.log(`[Jira AI Helper] Моя заявка ${issue.key}: залишок SLA ${slaInfo.remainingMinutes} хв (поріг ${thresholdMinutes} хв).`);
 
-      if (isBreached || isUrgent) {
-        const remMin = Math.max(0, remainingMinutes);
+      if (slaInfo.isBreached || isUrgent) {
+        const remMin = Math.max(0, slaInfo.remainingMinutes);
         criticalList.push({
           key: issue.key,
           summary: issue.fields.summary || '',
@@ -246,9 +285,9 @@
           priority: issue.fields.priority?.name || '',
           priorityIcon: issue.fields.priority?.iconUrl || '',
           remainingMinutes: remMin,
-          isBreached,
-          friendly: isBreached ? 'Прострочено' : (ongoing.remainingTimeHumanReadable || ongoing.remainingTime?.friendly || formatMinutes(remMin)),
-          friendlyBreach: isBreached ? 'Прострочено' : ongoing.breachTime?.friendly
+          isBreached: slaInfo.isBreached,
+          friendly: slaInfo.friendly,
+          friendlyBreach: slaInfo.friendlyBreach
         });
       }
     });
@@ -269,40 +308,48 @@
     updateSlaTopMenuBadge(criticalList);
   }
 
-  // Оновлення бейджа SLA у верхньому меню Jira
+  // Оновлення бейджа SLA у верхньому меню Jira та створення випадаючого списку
   function updateSlaTopMenuBadge(criticalList) {
     const count = criticalList ? criticalList.length : 0;
     
+    let badgeWrapper = document.getElementById('jira-ai-sla-top-badge-wrapper');
     let badge = document.getElementById('jira-ai-sla-top-badge');
 
     if (!cachedSettings.enableSlaTopBadge || count === 0) {
-      if (badge) {
+      if (badgeWrapper) {
+        badgeWrapper.style.display = 'none';
+      } else if (badge) {
         badge.style.display = 'none';
       }
+      const existingDropdown = document.getElementById('jira-ai-sla-dropdown');
+      if (existingDropdown) existingDropdown.remove();
       return;
     }
 
     const hasCritical = criticalList.some(item => item.isBreached || item.remainingMinutes <= 10);
     
-    if (!badge) {
-      badge = document.createElement('li');
+    if (!badgeWrapper) {
+      badgeWrapper = document.createElement('li');
+      badgeWrapper.id = 'jira-ai-sla-top-badge-wrapper';
+      badgeWrapper.className = 'jira-ai-sla-top-badge-wrapper';
+
+      badge = document.createElement('div');
       badge.id = 'jira-ai-sla-top-badge';
-      badge.title = 'Заявки, що підпадають під SLA періоди';
-      
+      badge.title = 'Натисніть для перегляду списку термінових SLA заявок';
+
+      badgeWrapper.appendChild(badge);
+
       badge.onclick = (e) => {
         e.preventDefault();
-        checkSla();
-        const container = document.getElementById(SLA_CONFIG.containerId);
-        if (container) {
-          container.style.display = container.style.display === 'none' ? 'flex' : 'none';
-        }
+        e.stopPropagation();
+        toggleSlaDropdown(criticalList);
       };
 
       // Вставляємо відразу після кнопки Create (li#create-menu) у верхньому меню
       const createMenu = document.getElementById('create-menu') || document.querySelector('#create-menu');
 
       if (createMenu && createMenu.parentNode) {
-        createMenu.parentNode.insertBefore(badge, createMenu.nextSibling);
+        createMenu.parentNode.insertBefore(badgeWrapper, createMenu.nextSibling);
       } else {
         // Fallback: якщо #create-menu не знайдено, вставляємо у головне меню / шапку
         const targetContainer = document.querySelector('#header .aui-header-primary') || 
@@ -311,21 +358,98 @@
                                 document.querySelector('#header');
         
         if (targetContainer) {
-          targetContainer.appendChild(badge);
+          targetContainer.appendChild(badgeWrapper);
         } else {
-          document.body.appendChild(badge);
-          badge.style.position = 'fixed';
-          badge.style.top = '10px';
-          badge.style.right = '10px';
-          badge.style.zIndex = '10001';
+          document.body.appendChild(badgeWrapper);
+          badgeWrapper.style.position = 'fixed';
+          badgeWrapper.style.top = '10px';
+          badgeWrapper.style.right = '10px';
+          badgeWrapper.style.zIndex = '10001';
         }
       }
+
+      // Закриття дропдауну при кліку поза ним
+      document.addEventListener('click', (event) => {
+        const dropdown = document.getElementById('jira-ai-sla-dropdown');
+        if (dropdown && !dropdown.contains(event.target) && !badge.contains(event.target)) {
+          dropdown.remove();
+        }
+      });
     }
 
     const icon = hasCritical ? '🔥' : '⏱️';
     badge.className = `jira-ai-sla-top-badge ${hasCritical ? 'critical' : 'warning'}`;
     badge.innerHTML = `<span>${icon}</span><span>SLA: ${count}</span>`;
-    badge.style.display = 'inline-flex';
+    badgeWrapper.style.display = 'inline-flex';
+
+    // Якщо випадаючий список відкритий, оновлюємо його контент
+    const openDropdown = document.getElementById('jira-ai-sla-dropdown');
+    if (openDropdown) {
+      renderDropdownContent(openDropdown, criticalList);
+    }
+  }
+
+  // Перемикання випадаючого списку SLA заявок
+  function toggleSlaDropdown(criticalList) {
+    let dropdown = document.getElementById('jira-ai-sla-dropdown');
+    if (dropdown) {
+      dropdown.remove();
+      return;
+    }
+
+    const badgeWrapper = document.getElementById('jira-ai-sla-top-badge-wrapper');
+    if (!badgeWrapper) return;
+
+    dropdown = document.createElement('div');
+    dropdown.id = 'jira-ai-sla-dropdown';
+    dropdown.className = 'jira-ai-sla-dropdown';
+
+    renderDropdownContent(dropdown, criticalList);
+    badgeWrapper.appendChild(dropdown);
+  }
+
+  // Рендеринг вмісту випадаючого вікна
+  function renderDropdownContent(dropdown, criticalList) {
+    const count = criticalList ? criticalList.length : 0;
+    let itemsHtml = '';
+
+    if (count === 0) {
+      itemsHtml = '<div class="jira-ai-sla-dropdown-empty">Немає термінових SLA заявок 🎉</div>';
+    } else {
+      itemsHtml = criticalList.map(item => {
+        const isCrit = item.isBreached || item.remainingMinutes <= 10;
+        const badgeClass = isCrit ? 'critical' : 'warning';
+        return `
+          <li class="jira-ai-sla-dropdown-item" onclick="window.open('/browse/${item.key}', '_blank')">
+            <div class="jira-ai-sla-dropdown-item-top">
+              <span class="jira-ai-sla-dropdown-item-key">${item.key}</span>
+              <span class="jira-ai-sla-time-badge ${badgeClass}">${item.friendly}</span>
+            </div>
+            <div class="jira-ai-sla-dropdown-item-title" title="${item.summary}">
+              ${item.summary || 'Без опису'}
+            </div>
+          </li>
+        `;
+      }).join('');
+    }
+
+    dropdown.innerHTML = `
+      <div class="jira-ai-sla-dropdown-header">
+        <span>⏱️ Заявки під SLA (${count})</span>
+        <button type="button" style="background:none; border:none; cursor:pointer; font-size:16px; color:#6b778c;" id="jira-ai-sla-dropdown-close" title="Закрити">×</button>
+      </div>
+      <ul class="jira-ai-sla-dropdown-list">
+        ${itemsHtml}
+      </ul>
+    `;
+
+    const closeBtn = dropdown.querySelector('#jira-ai-sla-dropdown-close');
+    if (closeBtn) {
+      closeBtn.onclick = (e) => {
+        e.stopPropagation();
+        dropdown.remove();
+      };
+    }
   }
 
   // Очищення підсвітки
@@ -333,7 +457,7 @@
     document.querySelectorAll('.jira-ai-sla-row-warning, .jira-ai-sla-row-critical').forEach(el => {
       el.classList.remove('jira-ai-sla-row-warning', 'jira-ai-sla-row-critical');
     });
-    document.querySelectorAll('.jira-ai-sla-inline-badge, #jira-ai-sla-issue-banner').forEach(el => {
+    document.querySelectorAll('.jira-ai-sla-inline-badge').forEach(el => {
       el.remove();
     });
   }
@@ -377,15 +501,7 @@
         }
 
         // Додаємо бейдж поруч із номером заявки
-        /*const keyContainer = row.querySelector(`[data-cell-name="${issueKey}_issuekey"], a.issue-link[data-issue-key="${issueKey}"]`) || row.querySelector('a.issue-link');
-        if (keyContainer && !row.querySelector('.jira-ai-sla-inline-badge')) {
-          const badge = document.createElement('span');
-          badge.className = `jira-ai-sla-inline-badge ${className}`;
-          badge.title = `SLA: ${item.friendly}`;
-          badge.textContent = `⏱️ ${item.friendly}`;
-          keyContainer.parentNode.insertBefore(badge, keyContainer.nextSibling);
-        }*/
-		const keyContainer = row.querySelector(`[data-cell-name="${issueKey}_issuekey"], a.issue-link[data-issue-key="${issueKey}"]`) || row.querySelector('a.issue-link');
+        const keyContainer = row.querySelector(`[data-cell-name="${issueKey}_issuekey"], a.issue-link[data-issue-key="${issueKey}"]`) || row.querySelector('a.issue-link');
         if (keyContainer && !row.querySelector('.jira-ai-sla-inline-badge')) {
           const badge = document.createElement('span');
           badge.className = `jira-ai-sla-inline-badge ${className}`;
@@ -393,13 +509,12 @@
           badge.textContent = `${item.friendly}`;
           keyContainer.textContent = ''; 
           keyContainer.appendChild(badge);
-		  // ВИДАЛЕННЯ КАРТИНКИ: шукаємо img поруч у сусідньому лінку
-		  const issueImg = row.querySelector('div[data-cell-name$="_issuetype"] img, a.issue-link img');
-		  if (issueImg) {
-		    issueImg.remove();
-		  }		  
+          // ВИДАЛЕННЯ КАРТИНКИ: шукаємо img поруч у сусідньому лінку
+          const issueImg = row.querySelector('div[data-cell-name$="_issuetype"] img, a.issue-link img');
+          if (issueImg) {
+            issueImg.remove();
+          }		  
         }
-		
       }
     });
 
@@ -414,9 +529,6 @@
       if (criticalMap.has(currentKey)) {
         const item = criticalMap.get(currentKey);
         renderIssueTopBanner(item);
-      } else {
-        const existingBanner = document.getElementById('jira-ai-sla-issue-banner');
-        if (existingBanner) existingBanner.remove();
       }
     }
   }
@@ -643,17 +755,37 @@
       domObserver.observe(targetNode, { childList: true, subtree: true });
     }
 
-    // Відстеження зміни URL у Jira SPA (перехід між сторінками заявок без перезавантаження)
+    // Оптимізоване відстеження зміни URL у Jira SPA (перехід між сторінками без повного перезавантаження)
     let lastUrl = location.href;
-    const urlObserver = new MutationObserver(() => {
-      const url = location.href;
-      if (url !== lastUrl) {
-        lastUrl = url;
-        console.log('[Jira AI Helper] Зміна URL у Jira SPA:', url);
-        setTimeout(checkSla, 800);
+    const handleUrlChange = () => {
+      const currentUrl = location.href;
+      if (currentUrl !== lastUrl) {
+        lastUrl = currentUrl;
+        console.log('[Jira AI Helper] Зміна URL у Jira SPA:', currentUrl);
+        setTimeout(checkSla, 600);
       }
-    });
-    urlObserver.observe(document, { subtree: true, childList: true });
+    };
+
+    // 1. Слухаємо події навігації історії браузера
+    window.addEventListener('popstate', handleUrlChange);
+    const wrapHistoryMethod = (type) => {
+      const orig = history[type];
+      return function () {
+        const result = orig.apply(this, arguments);
+        window.dispatchEvent(new Event('jira-ai-locationchange'));
+        return result;
+      };
+    };
+    history.pushState = wrapHistoryMethod('pushState');
+    history.replaceState = wrapHistoryMethod('replaceState');
+    window.addEventListener('jira-ai-locationchange', handleUrlChange);
+
+    // 2. Спостерігаємо ТІЛЬКИ за тегом <title>, а не за всім document
+    const titleElement = document.querySelector('title');
+    if (titleElement) {
+      const titleObserver = new MutationObserver(handleUrlChange);
+      titleObserver.observe(titleElement, { childList: true, subtree: true, characterData: true });
+    }
   }
 
   // Старт після завантаження DOM
