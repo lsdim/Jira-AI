@@ -66,7 +66,7 @@ function loadOptions() {
     enableSignature: true,
     signatureText: 'З повагою, ІТ підтримка АТ "Укрпошта"',
     // Значення за замовчуванням для SLA
-    enableSlaTracking: true,
+    enableSlaTracking: false,
     enableSlaNotifications: true,
     slaThresholdMinutes: 30,
     enableSlaHighlighting: true,

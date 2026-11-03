@@ -1107,3 +1107,153 @@ html[data-color-mode="dark"] .jira-ai-sla-dropdown-item-title,
 body.theme-dark .jira-ai-sla-dropdown-item-title {
   color: #8b949e;
 }
+
+
+/* What's New Modal Overlay (Варіант А) */
+.jira-ai-whats-new-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(9, 30, 66, 0.54);
+  backdrop-filter: blur(2px);
+  z-index: 10005;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: jira-ai-fade-in 0.2s ease-out;
+}
+
+@keyframes jira-ai-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.jira-ai-whats-new-modal {
+  background: #ffffff;
+  width: 520px;
+  max-width: 90vw;
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #172b4d;
+}
+
+.jira-ai-whats-new-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #0052cc;
+  color: #ffffff;
+}
+
+.jira-ai-whats-new-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff;
+}
+
+.jira-ai-whats-new-body {
+  padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.jira-ai-whats-new-feature {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #ebecf0;
+}
+
+.jira-ai-whats-new-feature:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.jira-ai-whats-new-feature-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #172b4d;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jira-ai-whats-new-feature-desc {
+  color: #42526e;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.jira-ai-whats-new-notice {
+  background: #deebff;
+  border-left: 4px solid #0052cc;
+  padding: 10px 12px;
+  border-radius: 4px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #0747a6;
+}
+
+.jira-ai-whats-new-footer {
+  padding: 14px 20px;
+  background: #f4f5f7;
+  border-top: 1px solid #dfe1e6;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Dark theme for What's New modal */
+html[data-color-mode="dark"] .jira-ai-whats-new-modal,
+body.theme-dark .jira-ai-whats-new-modal {
+  background: #1d1d1d;
+  color: #e6edf3;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+  border: 1px solid #30363d;
+}
+
+html[data-color-mode="dark"] .jira-ai-whats-new-header,
+body.theme-dark .jira-ai-whats-new-header {
+  background: #003884;
+}
+
+html[data-color-mode="dark"] .jira-ai-whats-new-feature-title,
+body.theme-dark .jira-ai-whats-new-feature-title {
+  color: #e6edf3;
+}
+
+html[data-color-mode="dark"] .jira-ai-whats-new-feature-desc,
+body.theme-dark .jira-ai-whats-new-feature-desc {
+  color: #8b949e;
+}
+
+html[data-color-mode="dark"] .jira-ai-whats-new-feature {
+  border-bottom-color: #30363d;
+}
+
+html[data-color-mode="dark"] .jira-ai-whats-new-notice,
+body.theme-dark .jira-ai-whats-new-notice {
+  background: #1c2738;
+  border-left-color: #4c9aff;
+  color: #b3d4ff;
+}
+
+html[data-color-mode="dark"] .jira-ai-whats-new-footer,
+body.theme-dark .jira-ai-whats-new-footer {
+  background: #2b2b2b;
+  border-top-color: #30363d;
+}

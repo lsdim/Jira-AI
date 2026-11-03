@@ -604,3 +604,92 @@ async function showIssueTooltip(key, x, y) {
     currentTooltip.innerHTML = `<div class="ai-tooltip-body" style="color:red;">Помилка завантаження даних</div>`;
   }
 }
+
+
+// --- Секція інформування про оновлення "Що нового" (Варіант А) ---
+async function checkWhatsNew() {
+  try {
+    const currentVersion = chrome.runtime.getManifest().version;
+    const { lastSeenVersion } = await chrome.storage.local.get({ lastSeenVersion: '0.0' });
+
+    if (currentVersion !== lastSeenVersion) {
+      const changelogData = window.CHANGELOG?.[currentVersion];
+      if (changelogData) {
+        showWhatsNewModal(changelogData, currentVersion);
+      } else {
+        // Якщо окремого опису для версії немає, зберігаємо поточну версію
+        chrome.storage.local.set({ lastSeenVersion: currentVersion });
+      }
+    }
+  } catch (e) {
+    console.warn('[Jira AI Helper] Помилка перевірки оновлення версії:', e);
+  }
+}
+
+function showWhatsNewModal(data, version) {
+  if (document.getElementById('jira-ai-whats-new-overlay')) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'jira-ai-whats-new-overlay';
+  overlay.className = 'jira-ai-whats-new-overlay';
+
+  const featuresHtml = (data.features || []).map(f => `
+    <div class="jira-ai-whats-new-feature">
+      <div class="jira-ai-whats-new-feature-title">
+        <span style="font-size: 18px;">${f.icon || '✨'}</span>
+        <strong>${f.title}</strong>
+      </div>
+      <div class="jira-ai-whats-new-feature-desc">${f.desc}</div>
+      ${f.highlights ? `
+        <ul style="margin: 8px 0 0 18px; padding: 0; color: #5e6c84; font-size: 12px; line-height: 1.6;">
+          ${f.highlights.map(h => `<li>${h}</li>`).join('')}
+        </ul>
+      ` : ''}
+      ${f.notice ? `<div class="jira-ai-whats-new-notice">${f.notice}</div>` : ''}
+    </div>
+  `).join('');
+
+  overlay.innerHTML = `
+    <div class="jira-ai-whats-new-modal" role="dialog" aria-modal="true">
+      <div class="jira-ai-whats-new-header">
+        <h3>${data.title}</h3>
+      </div>
+      <div class="jira-ai-whats-new-body">
+        ${featuresHtml}
+      </div>
+      <div class="jira-ai-whats-new-footer">
+        <button type="button" id="jira-ai-whats-new-settings-btn" class="aui-button" style="margin-right: auto;">
+          ⚙️ Налаштувати SLA
+        </button>
+        <button type="button" id="jira-ai-whats-new-close-btn" class="aui-button aui-button-primary">
+          Зрозуміло
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const closeModal = () => {
+    chrome.storage.local.set({ lastSeenVersion: version });
+    overlay.remove();
+  };
+
+  overlay.querySelector('#jira-ai-whats-new-close-btn').onclick = (e) => {
+    e.preventDefault();
+    closeModal();
+  };
+
+  overlay.querySelector('#jira-ai-whats-new-settings-btn').onclick = (e) => {
+    e.preventDefault();
+    closeModal();
+    window.open(chrome.runtime.getURL('options.html'), '_blank');
+  };
+}
+
+// Запуск перевірки оновлення після готовності DOM
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => setTimeout(checkWhatsNew, 1200));
+} else {
+  setTimeout(checkWhatsNew, 1200);
+}

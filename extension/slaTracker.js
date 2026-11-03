@@ -19,7 +19,7 @@
   let pollingTimer = null;
   let activeIssues = []; // Масив актуальних критичних заявок
   let cachedSettings = {
-    enableSlaTracking: true,
+    enableSlaTracking: false,
     slaThresholdMinutes: 30,
     slaSnoozeDuration: 10,
     enableSlaHighlighting: true,
@@ -112,7 +112,7 @@
   async function loadSettings() {
     return new Promise((resolve) => {
       chrome.storage.local.get({
-        enableSlaTracking: true,
+        enableSlaTracking: false,
         slaThresholdMinutes: 30,
         enableSlaHighlighting: true,
         enableSlaNotifications: true,
