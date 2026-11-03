@@ -42,6 +42,17 @@
     return `${m} хв`;
   }
 
+  // Безпечне екранування тексту для вставки в HTML
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   // Очищення застарілих відкладених заявок (Snooze Cleanup)
   function cleanExpiredSnoozes(snoozed) {
     if (!snoozed || typeof snoozed !== 'object') return {};
@@ -131,7 +142,7 @@
   async function fetchAssignedIssues() {
     try {
       const jql = 'assignee = currentUser() AND resolution is EMPTY ORDER BY updated DESC';
-      const url = `/rest/api/2/search?jql=${encodeURIComponent(jql)}&maxResults=50&fields=summary,status,priority,assignee,${SLA_CONFIG.slaFieldId}`;
+      const url = `/rest/api/2/search?jql=${encodeURIComponent(jql)}&maxResults=50&fields=summary,status,priority,assignee,reporter,${SLA_CONFIG.slaFieldId}`;
       console.log('[Jira AI Helper] Отримання МОЇХ заявок:', jql);
       
       const response = await fetch(url);
@@ -160,7 +171,7 @@
 
     const currentKey = currentKeyMatch[1];
     try {
-      const response = await fetch(`/rest/api/2/issue/${currentKey}?fields=summary,status,priority,${SLA_CONFIG.slaFieldId}`);
+      const response = await fetch(`/rest/api/2/issue/${currentKey}?fields=summary,status,priority,reporter,${SLA_CONFIG.slaFieldId}`);
       if (!response.ok) return;
       const issue = await response.json();
 
@@ -200,9 +211,11 @@
 
       if (slaInfo.isBreached || isUrgent) {
         const remMin = Math.max(0, slaInfo.remainingMinutes);
+        const reporterName = issue.fields?.reporter?.displayName || issue.fields?.reporter?.name || '';
         const item = {
           key: issue.key,
           summary: issue.fields.summary || '',
+          reporter: reporterName,
           remainingMinutes: remMin,
           isBreached: slaInfo.isBreached,
           friendly: slaInfo.friendly,
@@ -278,9 +291,11 @@
 
       if (slaInfo.isBreached || isUrgent) {
         const remMin = Math.max(0, slaInfo.remainingMinutes);
+        const reporterName = issue.fields?.reporter?.displayName || issue.fields?.reporter?.name || '';
         criticalList.push({
           key: issue.key,
           summary: issue.fields.summary || '',
+          reporter: reporterName,
           status: issue.fields.status?.name || '',
           priority: issue.fields.priority?.name || '',
           priorityIcon: issue.fields.priority?.iconUrl || '',
@@ -419,14 +434,18 @@
       itemsHtml = criticalList.map(item => {
         const isCrit = item.isBreached || item.remainingMinutes <= 10;
         const badgeClass = isCrit ? 'critical' : 'warning';
+        const reporterText = item.reporter ? escapeHtml(item.reporter) : '';
         return `
           <li class="jira-ai-sla-dropdown-item" onclick="window.open('/browse/${item.key}', '_blank')">
             <div class="jira-ai-sla-dropdown-item-top">
-              <span class="jira-ai-sla-dropdown-item-key">${item.key}</span>
+              <div class="jira-ai-sla-dropdown-key-group">
+                <span class="jira-ai-sla-dropdown-item-key">${item.key}</span>
+                ${reporterText ? `<span class="jira-ai-sla-dropdown-reporter" title="Заявник: ${reporterText}">${reporterText}</span>` : ''}
+              </div>
               <span class="jira-ai-sla-time-badge ${badgeClass}">${item.friendly}</span>
             </div>
-            <div class="jira-ai-sla-dropdown-item-title" title="${item.summary}">
-              ${item.summary || 'Без опису'}
+            <div class="jira-ai-sla-dropdown-item-title" title="${escapeHtml(item.summary)}">
+              ${escapeHtml(item.summary) || 'Без опису'}
             </div>
           </li>
         `;

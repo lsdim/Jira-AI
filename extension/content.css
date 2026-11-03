@@ -994,7 +994,7 @@ body.theme-dark .jira-ai-sla-snooze-select {
   top: 100%;
   left: 0;
   margin-top: 6px;
-  width: 360px;
+  width: 390px;
   max-height: 480px;
   background: #ffffff;
   border-radius: 8px;
@@ -1060,6 +1060,32 @@ body.theme-dark .jira-ai-sla-snooze-select {
   color: #0052cc;
   text-decoration: none;
   font-size: 12px;
+  flex-shrink: 0;
+}
+
+.jira-ai-sla-dropdown-key-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.jira-ai-sla-dropdown-reporter {
+  display: inline-block;
+  width: 135px;
+  max-width: 135px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: #5e6c84;
+  flex-shrink: 0;
+}
+
+html[data-color-mode="dark"] .jira-ai-sla-dropdown-reporter,
+body.theme-dark .jira-ai-sla-dropdown-reporter {
+  color: #8b949e;
 }
 
 .jira-ai-sla-dropdown-item-title {
