@@ -357,7 +357,7 @@
       badge.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        toggleSlaDropdown(criticalList);
+        toggleSlaDropdown();
       };
 
       // Вставляємо відразу після кнопки Create (li#create-menu) у верхньому меню
@@ -400,12 +400,12 @@
     // Якщо випадаючий список відкритий, оновлюємо його контент
     const openDropdown = document.getElementById('jira-ai-sla-dropdown');
     if (openDropdown) {
-      renderDropdownContent(openDropdown, criticalList);
+      renderDropdownContent(openDropdown, activeIssues);
     }
   }
 
   // Перемикання випадаючого списку SLA заявок
-  function toggleSlaDropdown(criticalList) {
+  function toggleSlaDropdown() {
     let dropdown = document.getElementById('jira-ai-sla-dropdown');
     if (dropdown) {
       dropdown.remove();
@@ -419,8 +419,12 @@
     dropdown.id = 'jira-ai-sla-dropdown';
     dropdown.className = 'jira-ai-sla-dropdown';
 
-    renderDropdownContent(dropdown, criticalList);
+    // Завжди використовуємо актуальний список activeIssues замість застарілого з замикання
+    renderDropdownContent(dropdown, activeIssues);
     badgeWrapper.appendChild(dropdown);
+
+    // Запускаємо фонову перевірку для миттєвого оновлення найсвіжіших даних
+    checkSla();
   }
 
   // Рендеринг вмісту випадаючого вікна
