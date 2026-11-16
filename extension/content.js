@@ -50,52 +50,60 @@ function injectAIButtonIntoDialog() {
 }
 
 function injectComplexitySelector() {
-  const resolutionField = document.querySelector(JIRA_CONFIG.selectors.dialogResolution);
-  if (!resolutionField || document.getElementById('ai-complexity-selector')) return;
-
-  const container = document.createElement('div');
-  container.id = 'ai-complexity-selector';
-  container.className = 'ai-complexity-container';
-  
-  const label = document.createElement('span');
-  label.className = 'ai-complexity-label';
-  label.innerText = 'Рівень складності:';
-  container.appendChild(label);
-
-  const levels = [
-    { level: '1', title: 'Низька' },
-    { level: '2', title: 'Середня' },
-    { level: '3', title: 'Висока' }
-  ];
-
-  levels.forEach(l => {
-    const btn = document.createElement('button');
-    btn.className = 'ai-complexity-btn';
-    btn.type = 'button';
-    btn.innerText = l.level;
-    btn.title = l.title;
-    btn.dataset.level = l.level;
-    
-    // Перевіряємо чи вже вибрано цей рівень
-    const worksField = document.querySelector(JIRA_CONFIG.selectors.dialogExecutedWorks);
-    if (worksField && worksField.value.includes(`[Рівень складності: ${l.level}]`)) {
-      btn.classList.add('active');
+  chrome.storage.local.get({ enableComplexity: true }, (items) => {
+    if (!items.enableComplexity) {
+      const existing = document.getElementById('ai-complexity-selector');
+      if (existing) existing.remove();
+      return;
     }
 
-    btn.onclick = (e) => {
-      e.preventDefault();
-      setTicketComplexity(l.level);
-      
-      // Візуальна активація
-      container.querySelectorAll('.ai-complexity-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    };
-    
-    container.appendChild(btn);
-  });
+    const resolutionField = document.querySelector(JIRA_CONFIG.selectors.dialogResolution);
+    if (!resolutionField || document.getElementById('ai-complexity-selector')) return;
 
-  // Вставляємо після поля результату обробки
-  resolutionField.parentNode.appendChild(container);
+    const container = document.createElement('div');
+    container.id = 'ai-complexity-selector';
+    container.className = 'ai-complexity-container';
+    
+    const label = document.createElement('span');
+    label.className = 'ai-complexity-label';
+    label.innerText = 'Рівень складності:';
+    container.appendChild(label);
+
+    const levels = [
+      { level: '1', title: 'Низька' },
+      { level: '2', title: 'Середня' },
+      { level: '3', title: 'Висока' }
+    ];
+
+    levels.forEach(l => {
+      const btn = document.createElement('button');
+      btn.className = 'ai-complexity-btn';
+      btn.type = 'button';
+      btn.innerText = l.level;
+      btn.title = l.title;
+      btn.dataset.level = l.level;
+      
+      // Перевіряємо чи вже вибрано цей рівень
+      const worksField = document.querySelector(JIRA_CONFIG.selectors.dialogExecutedWorks);
+      if (worksField && worksField.value.includes(`[Рівень складності: ${l.level}]`)) {
+        btn.classList.add('active');
+      }
+
+      btn.onclick = (e) => {
+        e.preventDefault();
+        setTicketComplexity(l.level);
+        
+        // Візуальна активація
+        container.querySelectorAll('.ai-complexity-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      };
+      
+      container.appendChild(btn);
+    });
+
+    // Вставляємо після поля результату обробки
+    resolutionField.parentNode.appendChild(container);
+  });
 }
 
 function setTicketComplexity(level) {

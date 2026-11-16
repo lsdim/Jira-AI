@@ -30,6 +30,7 @@ document.getElementById('save').onclick = () => {
     consultNoteText: document.getElementById('consultNoteText').value,
     enableSignature: document.getElementById('enableSignature').checked,
     signatureText: document.getElementById('signatureText').value,
+    enableComplexity: document.getElementById('enableComplexity').checked,
     // Налаштування відстеження SLA
     enableSlaTracking: document.getElementById('enableSlaTracking').checked,
     enableSlaNotifications: document.getElementById('enableSlaNotifications').checked,
@@ -65,6 +66,7 @@ function loadOptions() {
     consultNoteText: 'Дане звернення буде закрито. Центр звернень користувачів приймає та обробляє заявки які стосуються виключно ІТ питань та проблем що виникли на робочому пристрої співробітників, надіслані через корпоративні методи зв\'язку',
     enableSignature: true,
     signatureText: 'З повагою, ІТ підтримка АТ "Укрпошта"',
+    enableComplexity: true,
     // Значення за замовчуванням для SLA
     enableSlaTracking: false,
     enableSlaNotifications: true,
@@ -90,6 +92,7 @@ function loadOptions() {
     document.getElementById('consultNoteText').value = items.consultNoteText;
     document.getElementById('enableSignature').checked = items.enableSignature;
     document.getElementById('signatureText').value = items.signatureText;
+    document.getElementById('enableComplexity').checked = items.enableComplexity !== false;
 
     // SLA поля
     document.getElementById('enableSlaTracking').checked = items.enableSlaTracking;
