@@ -6,10 +6,9 @@
 
   console.log('[Jira AI Helper] reminders.js завантажено');
 
-  let reminderCheckTimer = null;
   let cachedSettings = {
     enableReminders: true,
-    reminders: {} // { issueKey: { time: timestamp, note: '...' } }
+    reminders: {} // { issueKey: { time: timestamp, note: '...', summary: '...', reporterName: '...' } }
   };
 
   // Завантаження налаштувань
@@ -30,7 +29,7 @@
     await loadSettings();
     if (!cachedSettings.enableReminders) return;
 
-    // Спостерігачем або періодично перевіряємо наявність кнопки transition_more та бейджа в шапці
+    // Періодично перевіряємо наявність кнопки transition_more та бейджа в шапці
     setInterval(checkAndInjectUI, 1000);
     
     // Запускаємо перевірку нагадувань
@@ -64,7 +63,6 @@
       }
 
       if (btn) {
-        // Оновлюємо стан кнопки залежно від наявності активного нагадування для поточної заявки
         const hasActive = currentKey && cachedSettings.reminders && cachedSettings.reminders[currentKey];
         if (hasActive) {
           btn.style.backgroundColor = '#ffebe6';
@@ -100,22 +98,34 @@
     await loadSettings();
     const existing = cachedSettings.reminders[issueKey] || { time: '', note: '' };
 
-    // Конвертуємо мітку часу в формат datetime-local (YYYY-MM-DDTHH:mm)
     let defaultDateTime = '';
     if (existing.time) {
       const d = new Date(existing.time);
       const pad = (n) => String(n).padStart(2, '0');
       defaultDateTime = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     } else {
-      // За замовчуванням через 1 годину
       const d = new Date(Date.now() + 3600000);
       const pad = (n) => String(n).padStart(2, '0');
       defaultDateTime = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
+    // Спробуємо одразу витягнути summary та reporter для кешування
+    let fetchedSummary = existing.summary || '';
+    let fetchedReporter = existing.reporterName || '';
+    try {
+      const resp = await fetch(`/rest/api/2/issue/${issueKey}?fields=summary,reporter`);
+      if (resp.ok) {
+        const issueJson = await resp.json();
+        fetchedSummary = issueJson.fields?.summary || fetchedSummary;
+        fetchedReporter = issueJson.fields?.reporter?.displayName || fetchedReporter;
+      }
+    } catch (e) {
+      // ігноруємо
+    }
+
     const modal = document.createElement('div');
     modal.id = 'jira-ai-reminder-modal';
-    modal.className = 'jira-ai-whats-new-overlay'; // Використовуємо існуючий клас оверлею
+    modal.className = 'jira-ai-whats-new-overlay';
     modal.innerHTML = `
       <div class="jira-ai-whats-new-modal" style="width: 450px;">
         <div class="jira-ai-whats-new-header">
@@ -162,7 +172,6 @@
         return;
       }
 
-      // Парсимо datetime-local як локальний час (YYYY-MM-DDTHH:mm)
       const [datePart, timePart] = timeVal.split('T');
       const [year, month, day] = datePart.split('-').map(Number);
       const [hours, minutes] = timePart.split(':').map(Number);
@@ -176,6 +185,8 @@
       cachedSettings.reminders[issueKey] = {
         time: timestamp,
         note: noteVal,
+        summary: fetchedSummary,
+        reporterName: fetchedReporter,
         createdAt: Date.now(),
         notified: false
       };
@@ -200,7 +211,6 @@
     let badge = document.getElementById('jira-ai-reminders-top-badge');
 
     if (!wrapper) {
-      // Шукаємо куди вставити (поруч із SLA бейджем або кнопкою Create)
       const slaBadgeWrapper = document.getElementById('jira-ai-sla-top-badge-wrapper');
       const createMenu = document.getElementById('create-menu') || document.querySelector('#header-details-user-fullname')?.parentNode;
       
@@ -262,9 +272,9 @@
             <div class="jira-ai-sla-dropdown-item" data-key="${key}">
               <div class="jira-ai-sla-dropdown-item-top">
                 <a href="/browse/${key}" class="jira-ai-sla-dropdown-item-key" target="_blank">${key}</a>
-                <span style="font-size:11px; font-weight:700; color:#de350b;">${dateStr}</span>
+                <span style="font-size:11px; font-weight:700; color:#0052cc;">${dateStr}</span>
               </div>
-              <div style="font-size:11px; color:#5e6c84; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(data.note || 'Без замітки')}</div>
+              <div style="font-size:11px; color:#5e6c84; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(data.note || data.summary || 'Без замітки')}</div>
             </div>
           `;
         }).join('')
@@ -281,7 +291,6 @@
 
     wrapper.appendChild(dropdown);
 
-    // Закриття при кліку назовні
     const closeListener = (e) => {
       if (!wrapper.contains(e.target)) {
         dropdown.remove();
@@ -306,12 +315,9 @@
     await loadSettings();
     const reminders = cachedSettings.reminders || {};
     const now = Date.now();
-    console.log('[Jira AI Reminders] Перевірка нагадувань. Поточний час:', new Date(now).toLocaleString(), 'Кількість активних:', Object.keys(reminders).length);
 
     for (const [key, data] of Object.entries(reminders)) {
-      console.log(`[Jira AI Reminders] Заявка ${key}: час нагадування ${new Date(data.time).toLocaleString()}, notified: ${data.notified}`);
       if (data.time <= now && !data.notified) {
-        console.log(`[Jira AI Reminders] СПОВІЩЕННЯ спрацювало для ${key}!`);
         showReminderToast(key, data);
         
         cachedSettings.reminders[key].notified = true;
@@ -321,9 +327,30 @@
   }
 
   // Показ виринаючого сповіщення (Toast) для нагадування
-  function showReminderToast(key, data) {
+  async function showReminderToast(key, data) {
     try {
-      console.log('[Jira AI Reminders] showReminderToast викликано для', key, data);
+      let summary = data.summary || '';
+      let reporterName = data.reporterName || 'Анонім';
+      
+      if (!summary || !data.reporterName) {
+        try {
+          const resp = await fetch(`/rest/api/2/issue/${key}?fields=summary,reporter`);
+          if (resp.ok) {
+            const issueJson = await resp.json();
+            summary = issueJson.fields?.summary || summary;
+            reporterName = issueJson.fields?.reporter?.displayName || reporterName;
+            data.summary = summary;
+            data.reporterName = reporterName;
+            cachedSettings.reminders[key] = data;
+            await chrome.storage.local.set({ reminders: cachedSettings.reminders });
+          }
+        } catch (e) {
+          // ігноруємо
+        }
+      }
+
+      const dateStr = new Date(data.time).toLocaleString('uk-UA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
       let container = document.getElementById('jira-ai-reminder-toast-container');
       if (!container) {
         container = document.createElement('div');
@@ -335,10 +362,9 @@
         container.style.display = 'flex';
         container.style.flexDirection = 'column';
         container.style.gap = '12px';
-        container.style.maxWidth = '360px';
+        container.style.maxWidth = '380px';
         container.style.pointerEvents = 'none';
         document.body.appendChild(container);
-        console.log('[Jira AI Reminders] Створено новий контейнер для toast на body');
       }
 
       const card = document.createElement('div');
@@ -354,30 +380,65 @@
       card.style.zIndex = '99999';
       
       card.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-          <div style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+        <div class="jira-ai-sla-card-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <div class="jira-ai-sla-card-title" style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
             <span>⏰</span>
-            <strong>Нагадування по <a href="/browse/${key}" target="_blank" style="color: #0052cc; text-decoration: none;">${key}</a></strong>
+            <a href="/browse/${key}" class="jira-ai-sla-link" target="_blank" style="color: #0052cc; text-decoration: none;"><strong>${key}</strong></a>
+            <span class="jira-ai-sla-time-badge warning" style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: #deebff; color: #0052cc;">${dateStr}</span>
           </div>
-          <button class="jira-ai-reminder-close-btn" style="background: none; border: none; font-size: 18px; line-height: 14px; color: #6b778c; cursor: pointer; padding: 2px 6px; border-radius: 4px;">&times;</button>
+          <button class="jira-ai-sla-close-btn" title="Закрити" style="background: none; border: none; font-size: 18px; line-height: 14px; color: #6b778c; cursor: pointer; padding: 2px 6px; border-radius: 4px;">&times;</button>
         </div>
-        <div style="font-size: 12px; color: #42526e; line-height: 16px; margin-bottom: 10px; white-space: pre-line;">
+        <div style="font-size: 11px; font-weight: 700; color: #5e6c84; margin-bottom: 2px;">Заявник: ${escapeHtml(reporterName)}</div>
+        <div style="font-size: 12px; color: #172b4d; font-weight: 600; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(summary)}">${escapeHtml(summary)}</div>
+        <div class="jira-ai-sla-card-body" style="font-size: 12px; color: #42526e; line-height: 16px; margin-bottom: 10px; white-space: pre-line; background: #f4f5f7; padding: 8px; border-radius: 4px;">
           ${escapeHtml(data.note || 'Час нагадування настав!')}
         </div>
-        <div style="display: flex; justify-content: flex-end; gap: 8px;">
-          <a href="/browse/${key}" class="aui-button aui-button-primary" target="_blank" style="font-size: 11px; height: 24px; line-height: 24px; text-decoration: none;">Відкрити</a>
+        <div class="jira-ai-sla-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+          <a href="/browse/${key}" class="aui-button aui-button-compact aui-button-primary jira-ai-sla-open-btn" target="_blank" style="font-size: 11px; height: 24px; line-height: 24px; text-decoration: none;">Перейти</a>
+          <div class="jira-ai-sla-snooze-group" style="display: flex; align-items: center; gap: 6px;">
+            <select class="jira-ai-sla-snooze-select reminder-snooze-select" style="padding: 3px 6px; font-size: 11px; border: 1px solid #dfe1e6; border-radius: 3px; background: #f4f5f7; color: #172b4d;">
+              <option value="5">5 хв</option>
+              <option value="10">10 хв</option>
+              <option value="15" selected>15 хв</option>
+              <option value="30"> хв</option>
+              <option value="60">1 год</option>
+              <option value="120">2 год</option>
+            </select>
+            <button class="aui-button aui-button-compact jira-ai-sla-snooze-btn reminder-snooze-btn" style="font-size: 11px; height: 24px; background: #f4f5f7; color: #42526e; border: 1px solid #dfe1e6; cursor: pointer;">⏰ Відкласти</button>
+          </div>
         </div>
       `;
 
-      card.querySelector('.jira-ai-reminder-close-btn').onclick = () => {
+      // Подія "Закрити"
+      card.querySelector('.jira-ai-sla-close-btn').onclick = () => {
         card.style.opacity = '0';
         card.style.transform = 'translateY(15px)';
         card.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
         setTimeout(() => card.remove(), 250);
       };
 
+      // Подія "Відкласти" (Snooze)
+      card.querySelector('.reminder-snooze-btn').onclick = async (e) => {
+        e.preventDefault();
+        const selectEl = card.querySelector('.reminder-snooze-select');
+        const minutes = Number(selectEl.value) || 30;
+        const snoozeMs = minutes * 60 * 1000;
+
+        await loadSettings();
+        if (cachedSettings.reminders[key]) {
+          cachedSettings.reminders[key].time = Date.now() + snoozeMs;
+          cachedSettings.reminders[key].notified = false; // Скидаємо прапорець
+          await chrome.storage.local.set({ reminders: cachedSettings.reminders });
+        }
+
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(15px)';
+        card.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+        setTimeout(() => card.remove(), 250);
+        checkAndInjectUI();
+      };
+
       container.appendChild(card);
-      console.log('[Jira AI Reminders] Картку сповіщення успішно додано в контейнер!');
     } catch (err) {
       console.error('[Jira AI Reminders] Помилка при показі Toast:', err);
     }
