@@ -31,6 +31,7 @@ document.getElementById('save').onclick = () => {
     enableSignature: document.getElementById('enableSignature').checked,
     signatureText: document.getElementById('signatureText').value,
     enableComplexity: document.getElementById('enableComplexity').checked,
+    enableReminders: document.getElementById('enableReminders').checked,
     // Налаштування відстеження SLA
     enableSlaTracking: document.getElementById('enableSlaTracking').checked,
     enableSlaNotifications: document.getElementById('enableSlaNotifications').checked,
@@ -67,6 +68,7 @@ function loadOptions() {
     enableSignature: true,
     signatureText: 'З повагою, ІТ підтримка АТ "Укрпошта"',
     enableComplexity: true,
+    enableReminders: true,
     // Значення за замовчуванням для SLA
     enableSlaTracking: false,
     enableSlaNotifications: true,
@@ -93,6 +95,7 @@ function loadOptions() {
     document.getElementById('enableSignature').checked = items.enableSignature;
     document.getElementById('signatureText').value = items.signatureText;
     document.getElementById('enableComplexity').checked = items.enableComplexity !== false;
+    document.getElementById('enableReminders').checked = items.enableReminders !== false;
 
     // SLA поля
     document.getElementById('enableSlaTracking').checked = items.enableSlaTracking;
