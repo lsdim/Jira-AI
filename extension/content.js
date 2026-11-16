@@ -59,15 +59,13 @@ function injectComplexitySelector() {
   
   const label = document.createElement('span');
   label.className = 'ai-complexity-label';
-  label.innerText = 'Складність:';
+  label.innerText = 'Рівень складності:';
   container.appendChild(label);
 
   const levels = [
-    { level: '1', title: 'Дуже низька' },
-    { level: '2', title: 'Низька' },
-    { level: '3', title: 'Середня' },
-    { level: '4', title: 'Висока' },
-    { level: '5', title: 'Дуже висока' }
+    { level: '1', title: 'Низька' },
+    { level: '2', title: 'Середня' },
+    { level: '3', title: 'Висока' }
   ];
 
   levels.forEach(l => {
@@ -78,9 +76,9 @@ function injectComplexitySelector() {
     btn.title = l.title;
     btn.dataset.level = l.level;
     
-    // Перевіряємо чи вже вибрано цей рівень (наприклад, при повторному відкритті або якщо ШІ вже заповнив)
+    // Перевіряємо чи вже вибрано цей рівень
     const worksField = document.querySelector(JIRA_CONFIG.selectors.dialogExecutedWorks);
-    if (worksField && worksField.value.includes(`[Складність: ${l.level}]`)) {
+    if (worksField && worksField.value.includes(`[Рівень складності: ${l.level}]`)) {
       btn.classList.add('active');
     }
 
@@ -104,11 +102,11 @@ function setTicketComplexity(level) {
   const worksField = document.querySelector(JIRA_CONFIG.selectors.dialogExecutedWorks);
   if (!worksField) return;
 
-  const complexityString = `[Складність: ${level}]`;
+  const complexityString = `[Рівень складності: ${level}]`;
   let currentValue = worksField.value;
 
-  // Регулярний вираз для пошуку вже існуючої мітки складності (будь-якого рівня)
-  const complexityRegex = /\n?\s*\[Складність: \d\]/g;
+  // Регулярний вираз для пошуку вже існуючої мітки (враховуючи старий формат "Складність" та новий "Рівень складності")
+  const complexityRegex = /\n?\s*\[(Рівень складності|Складність): \d\]/g;
   
   if (complexityRegex.test(currentValue)) {
     // Замінюємо існуючу
@@ -520,8 +518,8 @@ function fillJiraFields(data) {
   const resolutionField = document.querySelector(JIRA_CONFIG.selectors.dialogResolution);
   
   if (worksField) {
-    // Зберігаємо складність, якщо вона вже була вибрана
-    const complexityRegex = /\[Складність: \d\]/g;
+    // Зберігаємо складність, якщо вона вже була вибрана (підтримуємо обидва формати для перехідного періоду)
+    const complexityRegex = /\[(Рівень складності|Складність): \d\]/g;
     const existingComplexity = worksField.value.match(complexityRegex);
     
     let newWorks = data.executedWorks;

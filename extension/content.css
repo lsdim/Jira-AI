@@ -635,11 +635,16 @@
   border-color: #0052cc;
 }
 
-.ai-complexity-btn[data-level="1"].active { background: #36b37e; border-color: #36b37e; }
+/*.ai-complexity-btn[data-level="1"].active { background: #36b37e; border-color: #36b37e; }
 .ai-complexity-btn[data-level="2"].active { background: #57d9a3; border-color: #57d9a3; color: #172b4d; }
 .ai-complexity-btn[data-level="3"].active { background: #ffab00; border-color: #ffab00; color: #172b4d; }
 .ai-complexity-btn[data-level="4"].active { background: #ff7452; border-color: #ff7452; }
 .ai-complexity-btn[data-level="5"].active { background: #bf2600; border-color: #bf2600; }
+*/
+
+.ai-complexity-btn[data-level="1"].active { background: #36b37e; border-color: #36b37e; }
+.ai-complexity-btn[data-level="2"].active { background: #ffab00; border-color: #ffab00; color: #172b4d; }
+.ai-complexity-btn[data-level="3"].active { background: #bf2600; border-color: #bf2600; }
 
 /* Темна тема для складності */
 html[data-color-mode="dark"] .ai-complexity-container,
