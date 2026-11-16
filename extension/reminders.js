@@ -268,13 +268,22 @@
     const itemsHtml = Object.entries(reminders).length > 0
       ? Object.entries(reminders).map(([key, data]) => {
           const dateStr = new Date(data.time).toLocaleString('uk-UA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+          const reporter = data.reporterName ? `Заявник: ${data.reporterName}` : '';
+          const summary = data.summary || '';
+          const note = data.note ? `Замітка: ${data.note}` : '';
+
           return `
-            <div class="jira-ai-sla-dropdown-item" data-key="${key}">
-              <div class="jira-ai-sla-dropdown-item-top">
-                <a href="/browse/${key}" class="jira-ai-sla-dropdown-item-key" target="_blank">${key}</a>
-                <span style="font-size:11px; font-weight:700; color:#0052cc;">${dateStr}</span>
+            <div class="jira-ai-sla-dropdown-item" data-key="${key}" style="padding: 10px 14px; border-bottom: 1px solid #ebecf0; position: relative;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                <a href="/browse/${key}" class="jira-ai-sla-dropdown-item-key" target="_blank" style="font-weight: 700; color: #0052cc; text-decoration: none;">${key}</a>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 11px; font-weight: 700; color: #0052cc; background: #deebff; padding: 1px 6px; border-radius: 10px;">${dateStr}</span>
+                  <button class="jira-ai-reminder-delete-item" data-key="${key}" title="Видалити нагадування" style="background: none; border: none; color: #de350b; cursor: pointer; font-size: 14px; font-weight: bold; padding: 0 4px;">&times;</button>
+                </div>
               </div>
-              <div style="font-size:11px; color:#5e6c84; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(data.note || data.summary || 'Без замітки')}</div>
+              ${reporter ? `<div style="font-size: 11px; font-weight: 600; color: #5e6c84; margin-bottom: 2px;">${escapeHtml(reporter)}</div>` : ''}
+              ${summary ? `<div style="font-size: 11px; color: #172b4d; font-weight: 600; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(summary)}">${escapeHtml(summary)}</div>` : ''}
+              ${note ? `<div style="font-size: 11px; color: #42526e; background: #f4f5f7; padding: 4px 6px; border-radius: 3px; white-space: pre-line;">${escapeHtml(note)}</div>` : ''}
             </div>
           `;
         }).join('')
@@ -284,10 +293,24 @@
       <div class="jira-ai-sla-dropdown-header">
         <span>⏰ Активні нагадування (${Object.keys(reminders).length})</span>
       </div>
-      <div class="jira-ai-sla-dropdown-list">
+      <div class="jira-ai-sla-dropdown-list" style="max-height: 400px; overflow-y: auto;">
         ${itemsHtml}
       </div>
     `;
+
+    // Додаємо обробку кліків для кнопок видалення всередині dropdown
+    dropdown.querySelectorAll('.jira-ai-reminder-delete-item').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        const keyToDelete = btn.getAttribute('data-key');
+        if (keyToDelete && cachedSettings.reminders[keyToDelete]) {
+          delete cachedSettings.reminders[keyToDelete];
+          await chrome.storage.local.set({ reminders: cachedSettings.reminders });
+          dropdown.remove();
+          checkAndInjectUI();
+        }
+      };
+    });
 
     wrapper.appendChild(dropdown);
 
