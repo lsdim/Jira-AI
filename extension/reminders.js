@@ -273,12 +273,12 @@
           const note = data.note ? `Замітка: ${data.note}` : '';
 
           return `
-            <div class="jira-ai-sla-dropdown-item" data-key="${key}" style="padding: 10px 14px; border-bottom: 1px solid #ebecf0; position: relative;">
+            <div class="jira-ai-sla-dropdown-item reminder-dropdown-item" data-key="${key}" style="padding: 10px 14px; border-bottom: 1px solid #ebecf0; position: relative; cursor: pointer;" title="Натисніть, щоб редагувати нагадування">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-                <a href="/browse/${key}" class="jira-ai-sla-dropdown-item-key" target="_blank" style="font-weight: 700; color: #0052cc; text-decoration: none;">${key}</a>
+                <a href="/browse/${key}" class="jira-ai-sla-dropdown-item-key" target="_blank" style="font-weight: 700; color: #0052cc; text-decoration: none;" onclick="event.stopPropagation();">${key}</a>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span style="font-size: 11px; font-weight: 700; color: #0052cc; background: #deebff; padding: 1px 6px; border-radius: 10px;">${dateStr}</span>
-                  <button class="jira-ai-reminder-delete-item" data-key="${key}" title="Видалити нагадування" style="background: none; border: none; color: #de350b; cursor: pointer; font-size: 14px; font-weight: bold; padding: 0 4px;">&times;</button>
+                  <button class="jira-ai-reminder-delete-item" data-key="${key}" title="Видалити нагадування" style="background: none; border: none; color: #de350b; cursor: pointer; font-size: 14px; font-weight: bold; padding: 0 4px;" onclick="event.stopPropagation();">&times;</button>
                 </div>
               </div>
               ${reporter ? `<div style="font-size: 11px; font-weight: 600; color: #5e6c84; margin-bottom: 2px;">${escapeHtml(reporter)}</div>` : ''}
@@ -298,7 +298,18 @@
       </div>
     `;
 
-    // Додаємо обробку кліків для кнопок видалення всередині dropdown
+    // Обробка кліку для редагування нагадування
+    dropdown.querySelectorAll('.reminder-dropdown-item').forEach(item => {
+      item.onclick = (e) => {
+        const keyToEdit = item.getAttribute('data-key');
+        if (keyToEdit) {
+          dropdown.remove();
+          openReminderModal(keyToEdit);
+        }
+      };
+    });
+
+    // Обробка кліку для кнопок видалення
     dropdown.querySelectorAll('.jira-ai-reminder-delete-item').forEach(btn => {
       btn.onclick = async (e) => {
         e.stopPropagation();
@@ -423,7 +434,7 @@
               <option value="5">5 хв</option>
               <option value="10">10 хв</option>
               <option value="15" selected>15 хв</option>
-              <option value="30"> хв</option>
+              <option value="30">30 хв</option>
               <option value="60">1 год</option>
               <option value="120">2 год</option>
             </select>
