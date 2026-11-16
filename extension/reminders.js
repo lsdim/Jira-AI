@@ -138,7 +138,7 @@
           </div>
           <div class="field-group">
             <label style="display:block; font-weight:600; font-size:12px; margin-bottom:6px; color:#5e6c84;">Замітка / Причина:</label>
-            <textarea id="jira-reminder-note" placeholder="Наприклад: Передзвонити клієнту щодо уточнення IP..." style="width:100%; height:90px; padding:8px; border:2px solid #dfe1e6; border-radius:4px; box-sizing:border-box; resize:vertical; font-family:inherit;">${existing.note || ''}</textarea>
+            <textarea id="jira-reminder-note" placeholder="Наприклад: Передзвонити заявнику..." style="width:100%; height:90px; padding:8px; border:2px solid #dfe1e6; border-radius:4px; box-sizing:border-box; resize:vertical; font-family:inherit;">${existing.note || ''}</textarea>
           </div>
         </div>
         <div class="jira-ai-whats-new-footer">
@@ -223,9 +223,9 @@
       badge = document.createElement('div');
       badge.id = 'jira-ai-reminders-top-badge';
       badge.className = 'jira-ai-sla-top-badge';
-      badge.style.background = '#deebff';
+      /*badge.style.background = '#deebff';
       badge.style.color = '#0052cc';
-      badge.style.borderColor = '#4c9aff';
+      badge.style.borderColor = '#4c9aff';*/
       badge.title = 'Активні нагадування';
 
       wrapper.appendChild(badge);
@@ -265,19 +265,25 @@
     dropdown.className = 'jira-ai-sla-dropdown';
 
     const reminders = cachedSettings.reminders || {};
+    const now = Date.now();
     const itemsHtml = Object.entries(reminders).length > 0
       ? Object.entries(reminders).map(([key, data]) => {
+          const isOverdue = data.time <= now;
           const dateStr = new Date(data.time).toLocaleString('uk-UA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
           const reporter = data.reporterName ? `Заявник: ${data.reporterName}` : '';
           const summary = data.summary || '';
           const note = data.note ? `Замітка: ${data.note}` : '';
+
+          const timeBadgeStyle = isOverdue 
+            ? 'color: #bf2600; background: #ffebe6;' 
+            : 'color: #0052cc; background: #deebff;';
 
           return `
             <div class="jira-ai-sla-dropdown-item reminder-dropdown-item" data-key="${key}" style="padding: 10px 14px; border-bottom: 1px solid #ebecf0; position: relative; cursor: pointer;" title="Натисніть, щоб редагувати нагадування">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
                 <a href="/browse/${key}" class="jira-ai-sla-dropdown-item-key" target="_blank" style="font-weight: 700; color: #0052cc; text-decoration: none;" onclick="event.stopPropagation();">${key}</a>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="font-size: 11px; font-weight: 700; color: #0052cc; background: #deebff; padding: 1px 6px; border-radius: 10px;">${dateStr}</span>
+                  <span style="font-size: 11px; font-weight: 700; ${timeBadgeStyle} padding: 1px 6px; border-radius: 10px;">${isOverdue ? '⚠️ ' : ''}${dateStr}</span>
                   <button class="jira-ai-reminder-delete-item" data-key="${key}" title="Видалити нагадування" style="background: none; border: none; color: #de350b; cursor: pointer; font-size: 14px; font-weight: bold; padding: 0 4px;" onclick="event.stopPropagation();">&times;</button>
                 </div>
               </div>
