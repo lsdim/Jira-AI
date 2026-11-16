@@ -34,7 +34,7 @@
         "https://jira.ukrposhta.loc/secure/*",
         "https://jira.ukrposhta.loc/issues/*"
       ],
-      "js": ["defaults.js", "sheets.js", "highlighter.js", "attachments.js", "slaTracker.js", "content.js"],
+      "js": ["defaults.js", "sheets.js", "highlighter.js", "attachments.js", "slaTracker.js", "reminders.js", "content.js"],
       "css": ["content.css"]
     }
   ],
