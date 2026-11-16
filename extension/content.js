@@ -49,6 +49,84 @@ function injectAIButtonIntoDialog() {
   footer.prepend(aiBtn);
 }
 
+function injectComplexitySelector() {
+  const resolutionField = document.querySelector(JIRA_CONFIG.selectors.dialogResolution);
+  if (!resolutionField || document.getElementById('ai-complexity-selector')) return;
+
+  const container = document.createElement('div');
+  container.id = 'ai-complexity-selector';
+  container.className = 'ai-complexity-container';
+  
+  const label = document.createElement('span');
+  label.className = 'ai-complexity-label';
+  label.innerText = 'Складність:';
+  container.appendChild(label);
+
+  const levels = [
+    { level: '1', title: 'Дуже низька' },
+    { level: '2', title: 'Низька' },
+    { level: '3', title: 'Середня' },
+    { level: '4', title: 'Висока' },
+    { level: '5', title: 'Дуже висока' }
+  ];
+
+  levels.forEach(l => {
+    const btn = document.createElement('button');
+    btn.className = 'ai-complexity-btn';
+    btn.type = 'button';
+    btn.innerText = l.level;
+    btn.title = l.title;
+    btn.dataset.level = l.level;
+    
+    // Перевіряємо чи вже вибрано цей рівень (наприклад, при повторному відкритті або якщо ШІ вже заповнив)
+    const worksField = document.querySelector(JIRA_CONFIG.selectors.dialogExecutedWorks);
+    if (worksField && worksField.value.includes(`[Складність: ${l.level}]`)) {
+      btn.classList.add('active');
+    }
+
+    btn.onclick = (e) => {
+      e.preventDefault();
+      setTicketComplexity(l.level);
+      
+      // Візуальна активація
+      container.querySelectorAll('.ai-complexity-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+    
+    container.appendChild(btn);
+  });
+
+  // Вставляємо після поля результату обробки
+  resolutionField.parentNode.appendChild(container);
+}
+
+function setTicketComplexity(level) {
+  const worksField = document.querySelector(JIRA_CONFIG.selectors.dialogExecutedWorks);
+  if (!worksField) return;
+
+  const complexityString = `[Складність: ${level}]`;
+  let currentValue = worksField.value;
+
+  // Регулярний вираз для пошуку вже існуючої мітки складності (будь-якого рівня)
+  const complexityRegex = /\n?\s*\[Складність: \d\]/g;
+  
+  if (complexityRegex.test(currentValue)) {
+    // Замінюємо існуючу
+    currentValue = currentValue.replace(complexityRegex, '');
+  }
+  
+  // Додаємо нову (з нового рядка, якщо поле не порожнє)
+  if (currentValue.trim()) {
+    worksField.value = currentValue.trim() + '\n' + complexityString;
+  } else {
+    worksField.value = complexityString;
+  }
+
+  // Тригеримо події, щоб Jira побачила зміни
+  worksField.dispatchEvent(new Event('change', { bubbles: true }));
+  worksField.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 function getTicketData() {
   const summary = document.querySelector(JIRA_CONFIG.selectors.summary)?.innerText || '';
   let description = document.querySelector(JIRA_CONFIG.selectors.description)?.innerText || '';
@@ -442,7 +520,16 @@ function fillJiraFields(data) {
   const resolutionField = document.querySelector(JIRA_CONFIG.selectors.dialogResolution);
   
   if (worksField) {
-    worksField.value = data.executedWorks;
+    // Зберігаємо складність, якщо вона вже була вибрана
+    const complexityRegex = /\[Складність: \d\]/g;
+    const existingComplexity = worksField.value.match(complexityRegex);
+    
+    let newWorks = data.executedWorks;
+    if (existingComplexity) {
+      newWorks = newWorks.trim() + '\n' + existingComplexity[0];
+    }
+    
+    worksField.value = newWorks;
     worksField.dispatchEvent(new Event('change', { bubbles: true }));
     worksField.dispatchEvent(new Event('input', { bubbles: true }));
   }
@@ -496,6 +583,7 @@ function fillJiraFields(data) {
 // --- Ініціалізація ---
 const observer = new MutationObserver(() => {
   injectAIButtonIntoDialog();
+  injectComplexitySelector();
   chrome.storage.local.get({ enableIPHighlighting: true, enablePhoneHighlighting: true, enableBarcodeHighlighting: true, enableExtraHighlighting: true }, (items) => {
     if (items.enableIPHighlighting || items.enablePhoneHighlighting || items.enableBarcodeHighlighting || items.enableExtraHighlighting) processHighlights();
   });
@@ -503,6 +591,7 @@ const observer = new MutationObserver(() => {
 
 observer.observe(document.body, { childList: true, subtree: true });
 injectAIButtonIntoDialog();
+injectComplexitySelector();
 
 // Перевіряємо налаштування перед запуском
 chrome.storage.local.get({ 
