@@ -453,36 +453,29 @@
       card.className = 'jira-ai-sla-card jira-ai-reminder-card';
       card.setAttribute('data-key', key);
       card.style.pointerEvents = 'auto';
-      card.style.background = '#ffffff';
-      card.style.borderRadius = '8px';
-      card.style.boxShadow = '0 8px 24px rgba(9, 30, 66, 0.3), 0 0 1px rgba(9, 30, 66, 0.31)';
-      card.style.padding = '14px 16px';
-      card.style.borderLeft = '5px solid #0052cc';
-      card.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      card.style.color = '#172b4d';
       card.style.zIndex = '99999';
       
       card.innerHTML = `
         <div class="jira-ai-sla-card-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
           <div class="jira-ai-sla-card-title" style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
             <span>⏰</span>
-            <a href="/browse/${key}" class="jira-ai-sla-link" target="_blank" style="color: #0052cc; text-decoration: none;"><strong>${key}</strong></a>
-            <span class="jira-ai-sla-time-badge warning" style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: #deebff; color: #0052cc;">${dateStr}</span>
+            <a href="/browse/${key}" class="jira-ai-sla-link" target="_blank" style="text-decoration: none;"><strong>${key}</strong></a>
+            <span class="jira-ai-sla-time-badge" style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">${dateStr}</span>
           </div>
-          <button class="jira-ai-sla-close-btn" title="Закрити на цій вкладці" style="background: none; border: none; font-size: 18px; line-height: 14px; color: #6b778c; cursor: pointer; padding: 2px 6px; border-radius: 4px;">&times;</button>
+          <button class="jira-ai-sla-close-btn" title="Закрити на цій вкладці" style="background: none; border: none; font-size: 18px; line-height: 14px; cursor: pointer; padding: 2px 6px; border-radius: 4px;">&times;</button>
         </div>
-        <div style="font-size: 11px; font-weight: 700; color: #5e6c84; margin-bottom: 2px;">Заявник: ${escapeHtml(reporterName)}</div>
-        <div style="font-size: 12px; color: #172b4d; font-weight: 600; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(summary)}">${escapeHtml(summary)}</div>
-        <div class="jira-ai-sla-card-body" style="font-size: 12px; color: #42526e; line-height: 16px; margin-bottom: 10px; white-space: pre-line; background: #f4f5f7; padding: 8px; border-radius: 4px;">
+        <div style="font-size: 11px; font-weight: 700; opacity: 0.8; margin-bottom: 2px;">Заявник: ${escapeHtml(reporterName)}</div>
+        <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(summary)}">${escapeHtml(summary)}</div>
+        <div class="jira-ai-sla-card-body" style="font-size: 12px; line-height: 16px; margin-bottom: 10px; white-space: pre-line; padding: 8px; border-radius: 4px;">
           ${escapeHtml(data.note || 'Час нагадування настав!')}
         </div>
         <div class="jira-ai-sla-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
           <div style="display: flex; gap: 6px; align-items: center;">
             <a href="/browse/${key}" class="aui-button aui-button-compact aui-button-primary jira-ai-sla-open-btn" target="_blank" style="font-size: 11px; height: 24px; line-height: 24px; text-decoration: none;">Перейти</a>
-            <button class="aui-button aui-button-compact reminder-done-btn" style="font-size: 11px; height: 24px; background: #e3fce1; color: #006644; border: 1px solid #36b37e; cursor: pointer;" title="Позначити виконаним та закрити на всіх вкладках">✔️ Виконано</button>
+            <button class="aui-button aui-button-compact reminder-done-btn" style="font-size: 11px; height: 24px; cursor: pointer;" title="Позначити виконаним та закрити на всіх вкладках">✔️ Виконано</button>
           </div>
           <div class="jira-ai-sla-snooze-group" style="display: flex; align-items: center; gap: 6px;">
-            <select class="jira-ai-sla-snooze-select reminder-snooze-select" style="padding: 3px 6px; font-size: 11px; border: 1px solid #dfe1e6; border-radius: 3px; background: #f4f5f7; color: #172b4d;">
+            <select class="jira-ai-sla-snooze-select reminder-snooze-select" style="padding: 3px 6px; font-size: 11px; border-radius: 3px;">
               <option value="5">5 хв</option>
               <option value="10">10 хв</option>
               <option value="15" selected>15 хв</option>
@@ -490,7 +483,7 @@
               <option value="60">1 год</option>
               <option value="120">2 год</option>
             </select>
-            <button class="aui-button aui-button-compact jira-ai-sla-snooze-btn reminder-snooze-btn" style="font-size: 11px; height: 24px; background: #f4f5f7; color: #42526e; border: 1px solid #dfe1e6; cursor: pointer;">⏰ Відкласти</button>
+            <button class="aui-button aui-button-compact jira-ai-sla-snooze-btn reminder-snooze-btn" style="font-size: 11px; height: 24px; cursor: pointer;">⏰ Відкласти</button>
           </div>
         </div>
       `;

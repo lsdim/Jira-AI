@@ -915,6 +915,56 @@ body.theme-dark .jira-ai-sla-snooze-btn:hover {
   color: #ffffff !important;
 }
 
+/* --- Нагадування (Reminders) --- */
+.jira-ai-reminder-card {
+  border-left-color: #0052cc !important;
+}
+
+html[data-color-mode="dark"] .jira-ai-reminder-card {
+  background: #1d1d1d !important;
+  color: #e6edf3 !important;
+  border-color: #30363d !important;
+  border-left-color: #4c9aff !important;
+}
+
+html[data-color-mode="dark"] .jira-ai-reminder-card .jira-ai-sla-card-body {
+  background: #2b2b2b !important;
+  color: #c9d1d9 !important;
+}
+
+html[data-color-mode="dark"] .jira-ai-reminder-card a {
+  color: #4c9aff !important;
+}
+
+/* Темна тема для випадаючого списку нагадувань */
+html[data-color-mode="dark"] #jira-ai-reminders-dropdown {
+  background: #1d1d1d;
+  border-color: #30363d;
+  color: #e6edf3;
+}
+
+html[data-color-mode="dark"] .reminder-dropdown-item:hover {
+  background: #2a3441 !important;
+}
+
+html[data-color-mode="dark"] .reminder-dropdown-item {
+  border-bottom-color: #2b2b2b !important;
+}
+
+/* Темна тема для модального вікна нагадувань */
+html[data-color-mode="dark"] #jira-ai-reminder-modal .jira-ai-whats-new-modal {
+  background: #1d1d1d;
+  color: #e6edf3;
+  border: 1px solid #30363d;
+}
+
+html[data-color-mode="dark"] #jira-ai-reminder-modal input,
+html[data-color-mode="dark"] #jira-ai-reminder-modal textarea {
+  background: #2b2b2b;
+  color: #e6edf3;
+  border-color: #444;
+}
+
 /* Темна тема для рядків у черзі */
 html[data-color-mode="dark"] tr.jira-ai-sla-row-warning,
 body.theme-dark tr.jira-ai-sla-row-warning {
