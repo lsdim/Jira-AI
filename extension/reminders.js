@@ -11,6 +11,9 @@
     reminders: {} // { issueKey: { time: timestamp, note: '...', summary: '...', reporterName: '...' } }
   };
 
+  // Сесійний список закритих карток на поточній вкладці (як у модулі SLA)
+  const sessionClosedReminders = new Set();
+
   // Завантаження налаштувань
   async function loadSettings() {
     return new Promise((resolve) => {
@@ -27,14 +30,28 @@
   // Ініціалізація модуля
   async function initReminders() {
     await loadSettings();
-    if (!cachedSettings.enableReminders) return;
 
-    // Періодично перевіряємо наявність кнопки transition_more та бейджа в шапці
+    // Завжди запускаємо інтервали
     setInterval(checkAndInjectUI, 1000);
-    
-    // Запускаємо перевірку нагадувань
-    setInterval(checkRemindersLoop, 30000);
+    setInterval(checkRemindersLoop, 10000); // Перевіряємо кожні 10 секунд
     checkRemindersLoop();
+
+    // Слухаємо зміни в налаштуваннях у реальному часі для всіх вкладок
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local') {
+        if (changes.enableReminders) {
+          cachedSettings.enableReminders = changes.enableReminders.newValue;
+          console.log('[Jira AI Reminders] Статус модуля змінено:', cachedSettings.enableReminders);
+          checkAndInjectUI();
+          checkRemindersLoop();
+        }
+        if (changes.reminders) {
+          cachedSettings.reminders = changes.reminders.newValue || {};
+          updateRemindersTopBadge();
+          checkRemindersLoop(); // Миттєво синхронізуємо тоасти на всіх відкритих вкладках!
+        }
+      }
+    });
   }
 
   // Ін’єкція або оновлення кнопки нагадування біля opsbar-transitions_more
@@ -42,6 +59,16 @@
     const transitionsMore = document.getElementById('opsbar-transitions_more');
     const currentKey = getCurrentIssueKey();
     let btn = document.getElementById('jira-ai-reminder-btn');
+
+    // Якщо модуль вимкнено — видаляємо всі елементи та виходимо
+    if (!cachedSettings.enableReminders) {
+      if (btn) btn.remove();
+      const badgeWrapper = document.getElementById('jira-ai-reminders-top-badge-wrapper');
+      if (badgeWrapper) badgeWrapper.style.display = 'none';
+      const dropdown = document.getElementById('jira-ai-reminders-dropdown');
+      if (dropdown) dropdown.remove();
+      return;
+    }
 
     if (transitionsMore) {
       if (!btn) {
@@ -187,8 +214,7 @@
         note: noteVal,
         summary: fetchedSummary,
         reporterName: fetchedReporter,
-        createdAt: Date.now(),
-        notified: false
+        createdAt: Date.now()
       };
 
       await chrome.storage.local.set({ reminders: cachedSettings.reminders });
@@ -223,9 +249,6 @@
       badge = document.createElement('div');
       badge.id = 'jira-ai-reminders-top-badge';
       badge.className = 'jira-ai-sla-top-badge';
-      /*badge.style.background = '#deebff';
-      badge.style.color = '#0052cc';
-      badge.style.borderColor = '#4c9aff';*/
       badge.title = 'Активні нагадування';
 
       wrapper.appendChild(badge);
@@ -352,18 +375,37 @@
 
   // Перевірка нагадувань у фоні (цикл)
   async function checkRemindersLoop() {
+    if (!cachedSettings.enableReminders) return;
     await loadSettings();
     const reminders = cachedSettings.reminders || {};
     const now = Date.now();
 
+    // 1. Для кожного нагадування, час якого настав:
     for (const [key, data] of Object.entries(reminders)) {
-      if (data.time <= now && !data.notified) {
-        showReminderToast(key, data);
-        
-        cachedSettings.reminders[key].notified = true;
-        await chrome.storage.local.set({ reminders: cachedSettings.reminders });
+      if (data.time <= now) {
+        // Якщо картку ще не закрили на цій вкладці і вона ще не відображається
+        if (!sessionClosedReminders.has(key)) {
+          const existingCard = document.querySelector(`.jira-ai-reminder-card[data-key="${key}"]`);
+          if (!existingCard) {
+            showReminderToast(key, data);
+          }
+        }
+      } else {
+        // Якщо час у майбутньому (наприклад, відкладено на іншій вкладці) — видаляємо картку
+        const existingCard = document.querySelector(`.jira-ai-reminder-card[data-key="${key}"]`);
+        if (existingCard) {
+          existingCard.remove();
+        }
       }
     }
+
+    // 2. Якщо нагадування видалено з бази — прибираємо його картку з усіх вкладок
+    document.querySelectorAll('.jira-ai-reminder-card').forEach(card => {
+      const cardKey = card.getAttribute('data-key');
+      if (cardKey && !reminders[cardKey]) {
+        card.remove();
+      }
+    });
   }
 
   // Показ виринаючого сповіщення (Toast) для нагадування
@@ -408,7 +450,8 @@
       }
 
       const card = document.createElement('div');
-      card.className = 'jira-ai-sla-card';
+      card.className = 'jira-ai-sla-card jira-ai-reminder-card';
+      card.setAttribute('data-key', key);
       card.style.pointerEvents = 'auto';
       card.style.background = '#ffffff';
       card.style.borderRadius = '8px';
@@ -426,15 +469,18 @@
             <a href="/browse/${key}" class="jira-ai-sla-link" target="_blank" style="color: #0052cc; text-decoration: none;"><strong>${key}</strong></a>
             <span class="jira-ai-sla-time-badge warning" style="font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: #deebff; color: #0052cc;">${dateStr}</span>
           </div>
-          <button class="jira-ai-sla-close-btn" title="Закрити" style="background: none; border: none; font-size: 18px; line-height: 14px; color: #6b778c; cursor: pointer; padding: 2px 6px; border-radius: 4px;">&times;</button>
+          <button class="jira-ai-sla-close-btn" title="Закрити на цій вкладці" style="background: none; border: none; font-size: 18px; line-height: 14px; color: #6b778c; cursor: pointer; padding: 2px 6px; border-radius: 4px;">&times;</button>
         </div>
         <div style="font-size: 11px; font-weight: 700; color: #5e6c84; margin-bottom: 2px;">Заявник: ${escapeHtml(reporterName)}</div>
         <div style="font-size: 12px; color: #172b4d; font-weight: 600; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(summary)}">${escapeHtml(summary)}</div>
         <div class="jira-ai-sla-card-body" style="font-size: 12px; color: #42526e; line-height: 16px; margin-bottom: 10px; white-space: pre-line; background: #f4f5f7; padding: 8px; border-radius: 4px;">
           ${escapeHtml(data.note || 'Час нагадування настав!')}
         </div>
-        <div class="jira-ai-sla-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-          <a href="/browse/${key}" class="aui-button aui-button-compact aui-button-primary jira-ai-sla-open-btn" target="_blank" style="font-size: 11px; height: 24px; line-height: 24px; text-decoration: none;">Перейти</a>
+        <div class="jira-ai-sla-card-actions" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <a href="/browse/${key}" class="aui-button aui-button-compact aui-button-primary jira-ai-sla-open-btn" target="_blank" style="font-size: 11px; height: 24px; line-height: 24px; text-decoration: none;">Перейти</a>
+            <button class="aui-button aui-button-compact reminder-done-btn" style="font-size: 11px; height: 24px; background: #e3fce1; color: #006644; border: 1px solid #36b37e; cursor: pointer;" title="Позначити виконаним та закрити на всіх вкладках">✔️ Виконано</button>
+          </div>
           <div class="jira-ai-sla-snooze-group" style="display: flex; align-items: center; gap: 6px;">
             <select class="jira-ai-sla-snooze-select reminder-snooze-select" style="padding: 3px 6px; font-size: 11px; border: 1px solid #dfe1e6; border-radius: 3px; background: #f4f5f7; color: #172b4d;">
               <option value="5">5 хв</option>
@@ -449,25 +495,44 @@
         </div>
       `;
 
-      // Подія "Закрити"
+      // Подія "Закрити" (тільки на цій вкладці)
       card.querySelector('.jira-ai-sla-close-btn').onclick = () => {
+        sessionClosedReminders.add(key);
         card.style.opacity = '0';
         card.style.transform = 'translateY(15px)';
         card.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
         setTimeout(() => card.remove(), 250);
       };
 
-      // Подія "Відкласти" (Snooze)
+      // Подія "✔️ Виконано" (закриває та видаляє нагадування на всіх вкладках)
+      const doneBtn = card.querySelector('.reminder-done-btn');
+      if (doneBtn) {
+        doneBtn.onclick = async (e) => {
+          e.preventDefault();
+          await loadSettings();
+          if (cachedSettings.reminders[key]) {
+            delete cachedSettings.reminders[key];
+            await chrome.storage.local.set({ reminders: cachedSettings.reminders });
+          }
+          card.style.opacity = '0';
+          card.style.transform = 'translateY(15px)';
+          card.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+          setTimeout(() => card.remove(), 250);
+          checkAndInjectUI();
+        };
+      }
+
+      // Подія "Відкласти" (Snooze - синхронізує на всіх вкладках)
       card.querySelector('.reminder-snooze-btn').onclick = async (e) => {
         e.preventDefault();
         const selectEl = card.querySelector('.reminder-snooze-select');
-        const minutes = Number(selectEl.value) || 30;
+        const minutes = Number(selectEl.value) || 15;
         const snoozeMs = minutes * 60 * 1000;
 
         await loadSettings();
         if (cachedSettings.reminders[key]) {
           cachedSettings.reminders[key].time = Date.now() + snoozeMs;
-          cachedSettings.reminders[key].notified = false; // Скидаємо прапорець
+          sessionClosedReminders.delete(key);
           await chrome.storage.local.set({ reminders: cachedSettings.reminders });
         }
 
