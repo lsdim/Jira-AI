@@ -753,9 +753,6 @@ function showWhatsNewModal(data, version) {
         ${featuresHtml}
       </div>
       <div class="jira-ai-whats-new-footer">
-        <button type="button" id="jira-ai-whats-new-settings-btn" class="aui-button" style="margin-right: auto;">
-          ⚙️ Налаштувати SLA
-        </button>
         <button type="button" id="jira-ai-whats-new-close-btn" class="aui-button aui-button-primary">
           Зрозуміло
         </button>
