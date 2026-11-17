@@ -379,8 +379,37 @@
     await loadSettings();
     const reminders = cachedSettings.reminders || {};
     const now = Date.now();
+    const keys = Object.keys(reminders);
+    if (keys.length === 0) return;
 
-    // 1. Для кожного нагадування, час якого настав:
+    // 1. Перевірка статусів заявок для автовидалення закритих (оптимізовано одним запитом)
+    try {
+      const jql = `key in (${keys.join(',')}) AND status in (Resolved, Closed, "Опрацьована", "Закрита")`;
+      const resp = await fetch(`/rest/api/2/search?jql=${encodeURIComponent(jql)}&fields=status&maxResults=100`);
+      if (resp.ok) {
+        const data = await resp.json();
+        const solvedKeys = data.issues?.map(iss => iss.key) || [];
+        
+        if (solvedKeys.length > 0) {
+          let changed = false;
+          solvedKeys.forEach(key => {
+            if (reminders[key]) {
+              console.log(`[Jira AI Reminders] Автовидалення нагадування для закритої заявки: ${key}`);
+              delete reminders[key];
+              changed = true;
+            }
+          });
+          if (changed) {
+            await chrome.storage.local.set({ reminders: reminders });
+            updateRemindersTopBadge();
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Jira AI Reminders] Помилка автоперевірки статусів:', e);
+    }
+
+    // 2. Для кожного нагадування, час якого настав:
     for (const [key, data] of Object.entries(reminders)) {
       if (data.time <= now) {
         // Якщо картку ще не закрили на цій вкладці і вона ще не відображається
