@@ -67,7 +67,7 @@ function loadOptions() {
     consultNoteText: 'Дане звернення буде закрито. Центр звернень користувачів приймає та обробляє заявки які стосуються виключно ІТ питань та проблем що виникли на робочому пристрої співробітників, надіслані через корпоративні методи зв\'язку',
     enableSignature: true,
     signatureText: 'З повагою, ІТ підтримка АТ "Укрпошта"',
-    enableComplexity: true,
+    enableComplexity: false,
     enableReminders: true,
     // Значення за замовчуванням для SLA
     enableSlaTracking: false,

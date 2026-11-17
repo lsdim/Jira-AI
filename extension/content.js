@@ -50,7 +50,7 @@ function injectAIButtonIntoDialog() {
 }
 
 function injectComplexitySelector() {
-  chrome.storage.local.get({ enableComplexity: true }, (items) => {
+  chrome.storage.local.get({ enableComplexity: false }, (items) => {
     if (!items.enableComplexity) {
       const existing = document.getElementById('ai-complexity-selector');
       if (existing) existing.remove();
